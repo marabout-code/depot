@@ -1,9 +1,11 @@
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/string_constants.dart';
 import '../../../core/services/backup_service.dart';
@@ -13,6 +15,7 @@ import '../../../providers/auth_provider.dart';
 import '../../../providers/theme_provider.dart';
 import 'license_dialog.dart';
 import 'category_settings_screen.dart';
+import 'user_manual_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -248,6 +251,69 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
 
+          // --- Aide & Support ---
+          Card(
+            color: bgColor,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.help_outline, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Aide & Support',
+                        style: GoogleFonts.roboto(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.menu_book_outlined),
+                  title: Text('Guide d\'utilisation',
+                      style: GoogleFonts.roboto()),
+                  subtitle: Text(
+                    'Apprendre à utiliser l\'application',
+                    style: GoogleFonts.roboto(fontSize: 13, color: Colors.grey),
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const UserManualScreen(),
+                      ),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.email_outlined),
+                  title: Text(AppConstants.supportEmail,
+                      style: GoogleFonts.roboto()),
+                  subtitle: Text(
+                    'E-mail du support',
+                    style: GoogleFonts.roboto(fontSize: 13, color: Colors.grey),
+                  ),
+                  onTap: () => _openEmail(context),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.phone_outlined),
+                  title: Text(AppConstants.supportPhone,
+                      style: GoogleFonts.roboto()),
+                  subtitle: Text(
+                    'Téléphone / WhatsApp',
+                    style: GoogleFonts.roboto(fontSize: 13, color: Colors.grey),
+                  ),
+                  onTap: () => _openPhone(context),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
           // --- Informations ---
           Card(
             color: bgColor,
@@ -372,6 +438,38 @@ class SettingsScreen extends ConsumerWidget {
           ),
         );
       }
+    }
+  }
+
+  Future<void> _openEmail(BuildContext context) async {
+    final uri = Uri(
+      scheme: 'mailto',
+      path: AppConstants.supportEmail,
+      query: 'subject=${Uri.encodeComponent('Support Dépôt Distribution')}',
+    );
+    await _launchSupport(context, uri);
+  }
+
+  Future<void> _openPhone(BuildContext context) async {
+    final uri = Uri.parse('https://wa.me/${AppConstants.whatsAppNumber}');
+    await _launchSupport(context, uri);
+  }
+
+  Future<void> _launchSupport(BuildContext context, Uri uri) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!ok) {
+        await Clipboard.setData(ClipboardData(text: uri.path));
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Information copiée')),
+        );
+      }
+    } catch (_) {
+      await Clipboard.setData(ClipboardData(text: uri.path));
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Information copiée')),
+      );
     }
   }
 }

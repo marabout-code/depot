@@ -32,6 +32,10 @@ class AppConstants {
   static const String whatsAppContact = '+237674667234';
   static const String whatsAppNumber = '237674667234';
 
+  // Support & contact
+  static const String supportEmail = 'pondycode@gmail.com';
+  static const String supportPhone = '+237674667234';
+
   // Backup
   static const String backupFileName = 'centredistro_backup.json';
 }
