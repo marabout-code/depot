@@ -41,12 +41,12 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(StringConstants.frProducts),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => _navigateToForm(context),
-          ),
-        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        heroTag: 'products_fab',
+        tooltip: StringConstants.frAddProduct,
+        onPressed: () => _navigateToForm(context),
+        child: const Icon(Icons.add),
       ),
       body: Column(
         children: [

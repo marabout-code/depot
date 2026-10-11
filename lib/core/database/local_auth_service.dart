@@ -204,6 +204,19 @@ class LocalAuthService {
     }).toList();
   }
 
+  /// True when this device knows at least one user's PIN hash. A device with no
+  /// hash at all (fresh install, wiped storage) must ask the server to validate
+  /// the PIN instead of ruling it out locally.
+  Future<bool> hasAnyCredential() async {
+    final rows = await _db.select(_db.localCredentials).get();
+    return rows.isNotEmpty;
+  }
+
+  /// True when the shared-device throttle is engaged, independently of any
+  /// specific account. The login fallback must respect this so the online
+  /// exchange cannot be used to bypass a deliberate local lockout.
+  Future<bool> isDeviceLockedOut() => isLockedOut(_globalAttemptKey);
+
   /// True when [userId] has no cached credential, meaning an online login is
   /// the only way in until the next sync.
   Future<bool> hasCachedCredential(String userId) async {

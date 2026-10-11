@@ -79,23 +79,43 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   /// Verifies a PIN on-device. This is the primary login path and never
   /// requires a network round trip.
+  ///
+  /// When the device has nothing to compare against locally (fresh install,
+  /// wiped storage, or a PIN that was rotated on another device) the PIN is
+  /// sent to `login_with_pin` so the server can judge it. A local miss with
+  /// known hashes, or a locked-out device, is final without going online.
   Future<void> loginWithPin(String pin) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final user = await _authService.authenticatePin(pin);
-      if (user == null) {
+      if (user != null) {
+        state = AuthState(
+          status: AuthStatus.authenticated,
+          user: user,
+        );
+
+        // Fire and forget: a session is only needed for syncing, and failing to
+        // get one must not undo a successful local login.
+        unawaited(_authService.tryEstablishSession(pin));
+        return;
+      }
+
+      // A deliberate device lockout must not be bypassable through the online
+      // exchange.
+      if (await _authService.isDeviceLockedOut()) {
         state = state.copyWith(isLoading: false, error: _invalidPinMessage);
         return;
       }
 
-      state = AuthState(
-        status: AuthStatus.authenticated,
-        user: user,
-      );
+      // No usable local hash: let the server verify the PIN and pull the depot
+      // users down for offline logins from here on.
+      final online = await _authService.tryOnlinePinLogin(pin);
+      if (online != null) {
+        state = AuthState(status: AuthStatus.authenticated, user: online);
+        return;
+      }
 
-      // Fire and forget: a session is only needed for syncing, and failing to
-      // get one must not undo a successful local login.
-      unawaited(_authService.tryEstablishSession(pin));
+      state = state.copyWith(isLoading: false, error: _invalidPinMessage);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: _message(e));
     }
@@ -165,8 +185,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> logout() async {
+    // Signs out the session and clears the cached profile, but keeps the
+    // on-device PIN hashes so an offline keypad login still works after logout.
+    // (Wiping every hash here would make offline login impossible, since the
+    // keypad is only reachable once the cached user is gone.)
     await _authService.logout();
-    await _authService.forgetDeviceCredentials();
     state = const AuthState(status: AuthStatus.unauthenticated);
   }
 

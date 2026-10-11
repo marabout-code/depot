@@ -43,12 +43,12 @@ class _OrderListScreenState extends ConsumerState<OrderListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(StringConstants.frOrders),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => _navigateToCreate(context),
-          ),
-        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        heroTag: 'orders_fab',
+        tooltip: StringConstants.frCreateOrder,
+        onPressed: () => _navigateToCreate(context),
+        child: const Icon(Icons.add),
       ),
       body: Column(
         children: [

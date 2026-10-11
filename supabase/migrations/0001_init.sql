@@ -19,6 +19,10 @@
 --     all; each device hashes the PIN it was given locally. See
 --     `LocalAuthService` on the Dart side.
 
+-- On Supabase, pgcrypto is installed in the `extensions` schema, not `public`.
+-- Every function below that calls crypt()/gen_salt()/gen_random_bytes() must
+-- therefore include `extensions` in its `search_path`; a bare `public` path
+-- makes those calls fail at runtime with 42883 (function does not exist).
 create extension if not exists pgcrypto;
 
 -- ---------------------------------------------------------------------------
@@ -80,7 +84,7 @@ returns boolean
 language sql
 stable
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
   select exists (
     select 1 from public.app_users u
@@ -142,7 +146,7 @@ create or replace function public.sync_push_rows(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_row       jsonb;
@@ -221,7 +225,7 @@ create or replace function public.sync_pull_rows(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   if not exists (select 1 from public.app_users u where u.id = auth.uid()) then
@@ -235,11 +239,10 @@ begin
              'version',   d.version,
              'deleted',   d.deleted,
              'updatedAt', d.updated_at
-           ))
+           ) order by d.updated_at)
     from public.sync_documents d
     where d.collection = p_collection
       and (p_since is null or d.updated_at > p_since)
-    order by d.updated_at
   ), '[]'::jsonb);
 end;
 $$;
@@ -255,6 +258,7 @@ create or replace function public.verify_pin(p_pin text, p_hash text)
 returns boolean
 language sql
 immutable
+set search_path = public, extensions
 as $$
   select p_hash is not null
      and p_pin is not null
@@ -275,7 +279,7 @@ create or replace function public.pin_login_allowed(p_key text)
 returns boolean
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_failures integer;
@@ -299,7 +303,7 @@ create or replace function public.login_with_pin(p_pin text)
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_user       public.app_users%rowtype;
@@ -370,7 +374,7 @@ create or replace function public.admin_create_user(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_uid     uuid;
@@ -385,19 +389,50 @@ begin
     raise exception 'invalid_pin_format' using errcode = '22023';
   end if;
 
-  insert into auth.users (id, instance_id, email, encrypted_password, email_confirmed_at)
+  insert into auth.users (
+    id, instance_id, aud, role, email, encrypted_password,
+    email_confirmed_at, created_at, updated_at,
+    raw_app_meta_data, raw_user_meta_data,
+    confirmation_token, email_change, email_change_token_new, recovery_token
+  )
   values (
     v_user_id,
     -- Standard GoTrue instance id; `select ... from auth.users limit 1` is null
     -- on a brand-new project, so hardcode it.
     '00000000-0000-0000-0000-000000000000'::uuid,
+    'authenticated',
+    'authenticated',
     lower(trim(p_email)),
     crypt(v_secret, gen_salt('bf')),
-    now()
+    now(), now(), now(),
+    '{"provider":"email","providers":["email"]}'::jsonb,
+    '{}'::jsonb,
+    '', '', '', ''
   )
   on conflict (email) do update
-    set encrypted_password = excluded.encrypted_password
+    set encrypted_password = excluded.encrypted_password,
+        aud                = excluded.aud,
+        role               = excluded.role,
+        raw_app_meta_data  = excluded.raw_app_meta_data,
+        email_confirmed_at = coalesce(auth.users.email_confirmed_at, excluded.email_confirmed_at),
+        updated_at         = now()
   returning id into v_uid;
+
+  -- GoTrue resolves a password sign-in through an identity row; a user inserted
+  -- by hand into auth.users is otherwise rejected with invalid_credentials.
+  insert into auth.identities (
+    id, user_id, identity_data, provider, provider_id,
+    last_sign_in_at, created_at, updated_at
+  )
+  values (
+    gen_random_uuid(),
+    v_uid,
+    jsonb_build_object('sub', v_uid::text, 'email', lower(trim(p_email)), 'email_verified', true),
+    'email',
+    v_uid::text,
+    now(), now(), now()
+  )
+  on conflict do nothing;
 
   insert into public.app_users (id, name, email, phone, role, status, pin_hash, pin_offline_hash, data)
   values (
@@ -420,6 +455,31 @@ begin
         data            = excluded.data,
         updated_at      = now();
 
+  -- Publish the profile so the new user resolves on every device, including a
+  -- caller that only used the RPC and never wrote a local document.
+  insert into public.sync_documents (collection, id, data, version, updated_at)
+  values (
+    'users',
+    v_uid::text,
+    coalesce(p_data, '{}'::jsonb) || jsonb_build_object(
+      'id',             v_uid::text,
+      'name',           coalesce(p_name, ''),
+      'email',          lower(trim(p_email)),
+      'phone',          coalesce(p_phone, ''),
+      'role',           coalesce(p_role, 'driver'),
+      'status',         'active',
+      'offlinePinHash', p_offline_pin_hash,
+      'createdAt',      to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+      'updatedAt',      to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
+    ),
+    1,
+    now()
+  )
+  on conflict (collection, id) do update
+    set data       = excluded.data,
+        version    = public.sync_documents.version + 1,
+        updated_at = now();
+
   return jsonb_build_object(
     'id',     v_uid,
     'email',  lower(trim(p_email)),
@@ -441,7 +501,7 @@ create or replace function public.admin_set_pin(
 returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   if not public.is_admin() then
@@ -469,7 +529,7 @@ create or replace function public.app_users_sync_upsert(p_user_id uuid)
 returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_row public.app_users%rowtype;
@@ -547,7 +607,7 @@ create or replace function public.admin_bootstrap(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_uid     uuid := gen_random_uuid();
@@ -561,13 +621,37 @@ begin
     raise exception 'invalid_pin_format' using errcode = '22023';
   end if;
 
-  insert into auth.users (id, instance_id, email, encrypted_password, email_confirmed_at)
+  insert into auth.users (
+    id, instance_id, aud, role, email, encrypted_password,
+    email_confirmed_at, created_at, updated_at,
+    raw_app_meta_data, raw_user_meta_data,
+    confirmation_token, email_change, email_change_token_new, recovery_token
+  )
   values (
     v_uid,
     '00000000-0000-0000-0000-000000000000'::uuid,
+    'authenticated',
+    'authenticated',
     lower(trim(p_email)),
     crypt(v_secret, gen_salt('bf')),
-    now()
+    now(), now(), now(),
+    '{"provider":"email","providers":["email"]}'::jsonb,
+    '{}'::jsonb,
+    '', '', '', ''
+  );
+
+  -- GoTrue needs an identity row to accept a password sign-in for this user.
+  insert into auth.identities (
+    id, user_id, identity_data, provider, provider_id,
+    last_sign_in_at, created_at, updated_at
+  )
+  values (
+    gen_random_uuid(),
+    v_uid,
+    jsonb_build_object('sub', v_uid::text, 'email', lower(trim(p_email)), 'email_verified', true),
+    'email',
+    v_uid::text,
+    now(), now(), now()
   );
 
   insert into public.app_users (id, name, email, role, status, pin_hash, data)
@@ -580,6 +664,31 @@ begin
     crypt(p_pin, gen_salt('bf')),
     '{}'::jsonb
   );
+
+  -- Publish the profile into the synced dataset. A bootstrap that is run from
+  -- the SQL editor never touches the app's client-side document write, so
+  -- without this the account can authenticate yet resolve to no profile.
+  insert into public.sync_documents (collection, id, data, version, updated_at)
+  values (
+    'users',
+    v_uid::text,
+    jsonb_build_object(
+      'id',        v_uid::text,
+      'name',      coalesce(p_name, ''),
+      'email',     lower(trim(p_email)),
+      'phone',     '',
+      'role',      'admin',
+      'status',    'active',
+      'createdAt', to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+      'updatedAt', to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
+    ),
+    1,
+    now()
+  )
+  on conflict (collection, id) do update
+    set data       = excluded.data,
+        version    = public.sync_documents.version + 1,
+        updated_at = now();
 
   return jsonb_build_object(
     'id',     v_uid,

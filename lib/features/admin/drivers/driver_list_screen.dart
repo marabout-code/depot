@@ -41,12 +41,12 @@ class _DriverListScreenState extends ConsumerState<DriverListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(StringConstants.frDrivers),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => _navigateToForm(context),
-          ),
-        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        heroTag: 'drivers_fab',
+        tooltip: StringConstants.frAddDriver,
+        onPressed: () => _navigateToForm(context),
+        child: const Icon(Icons.add),
       ),
       body: Column(
         children: [

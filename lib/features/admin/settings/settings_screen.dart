@@ -80,7 +80,7 @@ class SettingsScreen extends ConsumerWidget {
                           onPressed: () async {
                             final result = await showDialog<bool>(
                               context: context,
-                              barrierDismissible: false,
+                              barrierDismissible: true,
                               builder: (_) => const LicenseDialog(
                                 trialExpired: false,
                               ),

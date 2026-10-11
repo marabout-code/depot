@@ -23,11 +23,13 @@ class AppConstants {
   // License
   static const String licenseSecret = 'D3p0tD1str0!2026#S3cr3tK3y';
   static const String masterKeySentinel = 'MASTER_KEY';
-  static const int trialDays = 30;
+  static const int trialDays = 60;
   static const String licenseFirstLaunchKey = 'license_first_launch';
   static const String licenseActivatedKey = 'license_activated';
   static const String licenseKeyStored = 'license_key';
   static const String deviceIdKey = 'device_id';
+  static const String whatsAppContact = '+237674667234';
+  static const String whatsAppNumber = '237674667234';
 
   // Backup
   static const String backupFileName = 'centredistro_backup.json';

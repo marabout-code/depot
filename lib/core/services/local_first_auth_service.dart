@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../database/local_auth_service.dart';
@@ -24,6 +25,9 @@ final secureStorageServiceProvider = Provider<SecureStorageService>((ref) {
 /// PIN-first authentication for an offline-first app.
 ///
 /// Login resolves against the device database, so it works with the radio off.
+/// When no local hash exists for the typed PIN (fresh install, wiped storage,
+/// or a PIN rotated on another device) the login falls back to
+/// `login_with_pin`, which verifies the PIN server side and mints a session.
 /// When a session is needed for sync, the flow is:
 ///
 ///   1. [authenticatePin] verifies the PIN against a local bcrypt hash.
@@ -105,6 +109,66 @@ class LocalFirstAuthService {
     }
   }
 
+  /// Online PIN login for a device that has nothing to compare against
+  /// locally (fresh install, wiped storage, or a PIN rotated on another
+  /// device). Returns the depot user, or null when the PIN is rejected, the
+  /// device is offline, or the server cannot be reached.
+  ///
+  /// The successful path is also a sync: it pulls the `users` collection so
+  /// this device has the matching offline hash cached for future radio-off
+  /// logins.
+  Future<UserModel?> tryOnlinePinLogin(String pin) async {
+    try {
+      final result = await Supabase.instance.client.rpc(
+        'login_with_pin',
+        params: {'p_pin': normalizePin(pin)},
+      );
+      debugPrint('[auth] online PIN login: response=$result');
+      if (result is! Map) return null;
+      final email = result['email'] as String?;
+      final secret = result['secret'] as String?;
+      if (email == null || secret == null) return null;
+
+      await Supabase.instance.client.auth.signInWithPassword(
+        email: email,
+        password: secret,
+      );
+
+      // Bring the depot users into this device's local database so the session
+      // works offline and the caller can resolve the profile.
+      await _sync.pullCollection('users');
+
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) return null;
+      final user = await _loadProfile(userId);
+      if (user != null) {
+        await _secureStorage.saveRole(user.role.value);
+        await _secureStorage.cacheUser(user);
+        // Hash the PIN the server just accepted with the device's own bcrypt,
+        // so this device can verify it offline from here on even when the
+        // account carries no synced offline hash.
+        await _localAuth.storeCredentialHash(
+          userId: user.id,
+          hash: LocalAuthService.hashPin(pin),
+          role: user.role,
+        );
+      }
+      debugPrint('[auth] online PIN login: user=${user?.id}');
+      _sync.scheduleSync();
+      return user;
+    } catch (e) {
+      debugPrint('[auth] online PIN login failed: $e');
+      return null;
+    }
+  }
+
+  /// True when the local database holds at least one cached PIN hash, so a
+  /// local miss is meaningful rather than the fallback doing the judging.
+  Future<bool> hasLocalCredentials() => _localAuth.hasAnyCredential();
+
+  /// True when the shared-device wrong-PIN throttle is engaged.
+  Future<bool> isDeviceLockedOut() => _localAuth.isDeviceLockedOut();
+
   /// Admin email + password sign-in. Used when a PIN is forgotten.
   Future<UserModel?> loginWithEmail(String email, String password) async {
     try {
@@ -135,7 +199,16 @@ class LocalFirstAuthService {
     final cached = await _secureStorage.getCachedUser();
     if (cached != null && cached.id == userId) return cached;
 
-    return null;
+    // Not known on this device yet (the classic fresh-install case). A session
+    // should exist by the time this runs, so pull the users collection and try
+    // again. On failure the caller falls back to the cached user, preserving
+    // offline behavior.
+    try {
+      await _sync.pullCollection('users');
+      return await _localAuth.loadUser(userId);
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Creates an account and caches its PIN on this device.

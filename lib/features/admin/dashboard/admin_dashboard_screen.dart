@@ -38,7 +38,8 @@ class AdminDashboardScreen extends ConsumerWidget {
               onPressed: () {
               showDialog(
                 context: context,
-                barrierDismissible: false,
+                barrierDismissible:
+                    license.status != LicenseStatus.trialExpired,
                 builder: (_) => LicenseDialog(
                   trialExpired:
                       license.status == LicenseStatus.trialExpired,

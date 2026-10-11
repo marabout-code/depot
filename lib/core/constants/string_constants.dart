@@ -206,6 +206,10 @@ class StringConstants {
   static const String frMyPerformance = 'Ma performance';
   static const String frDeliveriesToday = 'Aujourd\'hui';
 
+  // Sync / connectivity
+  static const String frBackOnline = 'Le système est de nouveau en ligne. Synchronisation...';
+  static const String frOffline = 'Mode hors ligne. Les données seront synchronisées dès le retour du réseau.';
+
   // Auth / Registration
   static const String frCreateAccount = 'Créer un compte';
   static const String frAlreadyHaveAccount = 'Déjà un compte ?';

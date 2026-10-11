@@ -107,8 +107,15 @@ class SyncService {
 
     _connectivitySub = _connectivity.onConnectivityChanged.listen((results) {
       final online = _isOnline(results);
+      final wasOnline = _status.online;
       _emit(_status.copyWith(online: online));
-      if (online) scheduleSync();
+      if (online && !wasOnline) {
+        // Network returned: sync right away rather than waiting for the
+        // debounce, so pending writes reach the server as soon as possible.
+        unawaited(syncNow());
+      } else if (online) {
+        scheduleSync();
+      }
     });
 
     await syncNow();
@@ -211,30 +218,38 @@ class SyncService {
 
   /// Pulls rows changed since the last pass and applies remote winners.
   Future<void> _pullRemoteChanges() async {
+    for (final collection in kCollections) {
+      await _pullCollection(collection);
+    }
+  }
+
+  /// Pulls one collection now. Public so the auth flow can fetch the `users`
+  /// collection the moment a fresh device signs in, before any screen renders.
+  Future<void> pullCollection(String collection) => _pullCollection(collection);
+
+  Future<void> _pullCollection(String collection) async {
     final client = Supabase.instance.client;
 
-    for (final collection in kCollections) {
-      final since = await _lastPulledAt(collection);
-      final rows = await client.rpc('sync_pull_rows', params: {
-        'p_collection': collection,
-        'p_since': since?.toUtc().toIso8601String(),
-      });
+    final since = await _lastPulledAt(collection);
+    final rows = await client.rpc('sync_pull_rows', params: {
+      'p_collection': collection,
+      'p_since': since?.toUtc().toIso8601String(),
+    });
 
-      if (rows is! List) continue;
+    if (rows is! List) return;
 
-      await _db.transaction(() async {
-        for (final raw in rows) {
-          await _applyRemote(collection, Map<String, dynamic>.from(raw as Map));
-        }
-      });
+    await _db.transaction(() async {
+      for (final raw in rows) {
+        await _applyRemote(collection, Map<String, dynamic>.from(raw as Map));
+      }
+    });
 
-      await (_db.into(_db.syncState).insertOnConflictUpdate(
-            SyncStateCompanion.insert(
-              collection: collection,
-              lastPulledAt: Value(DateTime.now()),
-            ),
-          ));
-    }
+    await (_db.into(_db.syncState).insertOnConflictUpdate(
+          SyncStateCompanion.insert(
+            collection: collection,
+            lastPulledAt: Value(DateTime.now()),
+          ),
+        ));
   }
 
   /// Applies one remote row, but only if it wins over the local copy.

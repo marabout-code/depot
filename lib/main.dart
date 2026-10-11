@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/constants/supabase_config.dart';
+import 'core/constants/string_constants.dart';
 import 'core/theme/app_theme.dart';
 import 'core/database/app_database.dart';
 import 'core/services/license_service.dart';
@@ -47,6 +48,11 @@ Future<void> main() async {
 
 class DepotDistributionApp extends ConsumerStatefulWidget {
   const DepotDistributionApp({super.key});
+
+  /// Root messenger so the sync status listener can raise SnackBars from the
+  /// app-level builder, which sits above any route's Scaffold.
+  static final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
+      GlobalKey<ScaffoldMessengerState>();
 
   @override
   ConsumerState<DepotDistributionApp> createState() =>
@@ -116,6 +122,9 @@ try {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeMode,
+      scaffoldMessengerKey: DepotDistributionApp.scaffoldMessengerKey,
+      builder: (context, child) =>
+          _SyncStatusListener(child: child ?? const SizedBox.shrink()),
       home: _syncFailed
           ? const _DatabaseErrorScreen()
           : _initialized
@@ -199,5 +208,68 @@ class _InitScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Watches the sync/connectivity state for the whole app and tells the user
+/// when the device loses connectivity or comes back online, so a depot operator
+/// always knows whether pending changes have been pushed to the server.
+class _SyncStatusListener extends ConsumerStatefulWidget {
+  const _SyncStatusListener({required this.child});
+
+  final Widget child;
+
+  @override
+  ConsumerState<_SyncStatusListener> createState() => _SyncStatusListenerState();
+}
+
+class _SyncStatusListenerState extends ConsumerState<_SyncStatusListener> {
+  /// Remembers the last known state so a transition (not the initial emission)
+  /// decides whether to notify.
+  bool? _wasOnline;
+
+  void _notify(String message, Color color, IconData icon) {
+    final messenger = DepotDistributionApp.scaffoldMessengerKey.currentState;
+    if (messenger == null) return;
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: color,
+          content: Row(
+            children: [
+              Icon(icon, color: Colors.white, size: 20),
+              const SizedBox(width: 12),
+              Expanded(child: Text(message)),
+            ],
+          ),
+        ),
+      );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen<AsyncValue<SyncStatus>>(syncStatusProvider, (_, next) {
+      next.whenData((status) {
+        final wasOnline = _wasOnline;
+        _wasOnline = status.online;
+        if (wasOnline == null) return;
+        if (!wasOnline && status.online) {
+          _notify(
+            StringConstants.frBackOnline,
+            AppTheme.primaryColor,
+            Icons.cloud_done,
+          );
+        } else if (wasOnline && !status.online) {
+          _notify(
+            StringConstants.frOffline,
+            AppTheme.secondaryColor,
+            Icons.cloud_off,
+          );
+        }
+      });
+    });
+    return widget.child;
   }
 }
