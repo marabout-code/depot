@@ -4,6 +4,7 @@ import '../../providers/auth_provider.dart';
 import '../../models/user_role.dart';
 import '../admin/dashboard/admin_dashboard_screen.dart';
 import '../driver/home/driver_home_screen.dart';
+import '../superadmin/superadmin_home_screen.dart';
 import 'splash_screen.dart';
 import 'pin_login_screen.dart';
 
@@ -21,6 +22,8 @@ class AuthGate extends ConsumerWidget {
         if (user == null) return const PinLoginScreen();
 
         switch (user.role) {
+          case UserRole.superadmin:
+            return const SuperadminHomeScreen();
           case UserRole.admin:
             return const AdminDashboardScreen();
           case UserRole.driver:

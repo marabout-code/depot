@@ -148,6 +148,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String pin,
     required UserRole role,
     String phone = '',
+    String? depotId,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
@@ -157,6 +158,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         pin: pin,
         role: role,
         phone: phone,
+        depotId: depotId,
       );
       if (user == null) {
         state = state.copyWith(

@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:depot_distribution_app/models/depot_model.dart';
 import 'package:depot_distribution_app/models/user_model.dart';
 import 'package:depot_distribution_app/models/user_role.dart';
 import 'package:depot_distribution_app/models/user_status.dart';
@@ -81,12 +82,36 @@ void main() {
     test('fromString should return correct enum', () {
       expect(UserRole.fromString('admin'), UserRole.admin);
       expect(UserRole.fromString('driver'), UserRole.driver);
+      expect(UserRole.fromString('superadmin'), UserRole.superadmin);
       expect(UserRole.fromString('unknown'), UserRole.driver);
     });
 
     test('value should return correct string', () {
       expect(UserRole.admin.value, 'admin');
       expect(UserRole.driver.value, 'driver');
+      expect(UserRole.superadmin.value, 'superadmin');
+      expect(UserRole.superadmin.isAdmin, isTrue);
+      expect(UserRole.admin.isAdmin, isTrue);
+      expect(UserRole.driver.isAdmin, isFalse);
+    });
+  });
+
+  group('DepotModel', () {
+    test('fromMap/toMap round trip keeps fields', () {
+      final depot = DepotModel.fromMap({
+        'id': 'd1',
+        'name': 'Bafoussam',
+        'city': 'Bafoussam',
+        'address': 'Rue de la Mairie',
+        'status': 'active',
+        'createdAt': '2026-01-01T10:00:00.000Z',
+      });
+      expect(depot.id, 'd1');
+      expect(depot.name, 'Bafoussam');
+      expect(depot.displayName, 'Bafoussam · Bafoussam');
+      final map = depot.toMap();
+      expect(map['name'], 'Bafoussam');
+      expect(map['address'], 'Rue de la Mairie');
     });
   });
 

@@ -10,6 +10,7 @@ class UserModel {
   final UserStatus status;
   final String pinCode;
   final String? profileImage;
+  final String? depotId;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -22,6 +23,7 @@ class UserModel {
     this.status = UserStatus.active,
     this.pinCode = '',
     this.profileImage,
+    this.depotId,
     DateTime? createdAt,
     DateTime? updatedAt,
   })  : createdAt = createdAt ?? DateTime.now(),
@@ -37,6 +39,7 @@ class UserModel {
       'status': status.value,
       'pinCode': pinCode,
       'profileImage': profileImage,
+      if (depotId != null) 'depotId': depotId,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
@@ -52,6 +55,7 @@ class UserModel {
       status: UserStatus.fromString(map['status'] as String),
       pinCode: (map['pinCode'] as String?) ?? '',
       profileImage: map['profileImage'] as String?,
+      depotId: map['depotId'] as String?,
       createdAt: DateTime.parse(map['createdAt'] as String),
       updatedAt: DateTime.parse(map['updatedAt'] as String),
     );
@@ -66,6 +70,7 @@ class UserModel {
     UserStatus? status,
     String? pinCode,
     String? profileImage,
+    String? depotId,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -78,6 +83,7 @@ class UserModel {
       status: status ?? this.status,
       pinCode: pinCode ?? this.pinCode,
       profileImage: profileImage ?? this.profileImage,
+      depotId: depotId ?? this.depotId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? DateTime.now(),
     );

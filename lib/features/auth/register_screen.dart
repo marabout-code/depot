@@ -9,11 +9,12 @@ import '../../models/user_role.dart';
 import '../../providers/auth_provider.dart';
 import 'pin_entry_field.dart';
 
-/// Admin account creation.
+/// Superadmin account creation.
 ///
-/// The PIN entered here becomes the account's only credential, so it is
-/// confirmed once before submission and validated locally with the same rules
-/// the login screen enforces.
+/// The first account on a fresh installation is the superadmin, who then
+/// creates depots and their local administrators. The PIN entered here becomes
+/// the account's only credential, so it is confirmed once before submission and
+/// validated locally with the same rules the login screen enforces.
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
 
@@ -41,10 +42,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     }
 
     ref.read(authProvider.notifier).register(
-          email: 'admin_${DateTime.now().millisecondsSinceEpoch}@depot.local',
-          name: 'Administrateur',
+          email: 'superadmin_${DateTime.now().millisecondsSinceEpoch}@depot.local',
+          name: 'Superadministrateur',
           pin: _pin,
-          role: UserRole.admin,
+          role: UserRole.superadmin,
         );
   }
 
@@ -94,9 +95,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
+                    "Ce compte sera le superadmin de toute l'installation : "
+                    'vous créerez ensuite les dépôts et leurs administrateurs. '
                     'Choisissez un code PIN de '
-                    '${LocalFirstAuthService.pinLength} chiffres. '
-                    'Ce code sera votre identifiant de connexion.',
+                    '${LocalFirstAuthService.pinLength} chiffres.',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.roboto(
                       fontSize: 14,

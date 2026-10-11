@@ -32,6 +32,7 @@ class BackupService {
     AppConstants.movementsCollection,
     AppConstants.categoriesCollection,
     AppConstants.routesCollection,
+    AppConstants.depotsCollection,
   ];
 
   Future<String> _buildJson() async {

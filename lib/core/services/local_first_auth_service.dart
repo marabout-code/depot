@@ -215,10 +215,13 @@ class LocalFirstAuthService {
   ///
   /// Two RPCs cover the two situations:
   ///
-  ///   * No session yet (a brand-new device, no installed admin): the first
-  ///     admin is bootstrapped via `admin_bootstrap`, which refuses to run once
-  ///     any admin exists. This is the online-only first run.
+  ///   * No session yet (a brand-new device, no installed account): the first
+  ///     user is bootstrapped as the `superadmin` via `admin_bootstrap`, which
+  ///     refuses to run once any admin exists. This is the online-only first
+  ///     run.
   ///   * An admin session exists: `admin_create_user` adds any staff account.
+  ///     [depotId] is only consulted for unrestricted callers; a depot admin's
+  ///     staff are always bound to that admin's own depot by the server.
   ///
   /// The PIN is hashed twice by design — pgcrypto on the server for online PIN
   /// login, Dart bcrypt on the device for offline use. The Dart hash is stored
@@ -229,6 +232,7 @@ class LocalFirstAuthService {
     required String pin,
     required UserRole role,
     String phone = '',
+    String? depotId,
   }) async {
     final normalized = normalizePin(pin);
     if (!isValidPin(normalized)) {
@@ -240,7 +244,7 @@ class LocalFirstAuthService {
 
     Map<String, dynamic>? result;
     try {
-      if (firstRun && role == UserRole.admin) {
+      if (firstRun && role == UserRole.superadmin) {
         result = await Supabase.instance.client.rpc('admin_bootstrap', params: {
           'p_email': email.trim(),
           'p_name': name.trim(),
@@ -255,6 +259,7 @@ class LocalFirstAuthService {
           'p_phone': phone.trim(),
           'p_data': <String, dynamic>{},
           'p_offline_pin_hash': offlineHash,
+          'p_depot_id': depotId,
         });
       }
     } on PostgrestException catch (e) {
@@ -288,6 +293,7 @@ class LocalFirstAuthService {
       phone: phone.trim(),
       role: role,
       status: UserStatus.active,
+      depotId: depotId,
     );
 
     // The offline hash travels in the synced user document so every device picks
