@@ -10,7 +10,8 @@
 -- orders. This version keeps the version-based last-write-wins rule but first
 -- restricts what a non-admin may touch:
 --
---   * orders / deliveries : only rows assigned to the caller (driverId = uid)
+--   * orders / deliveries / routes : only rows assigned to the caller
+--                           (driverId = uid)
 --   * users               : only the caller's own row, and never its
 --                           role/status/offline hash
 --   * products / inventory / movements / categories : admin only
@@ -44,7 +45,7 @@ begin
 
   if p_collection not in (
     'users', 'products', 'orders', 'deliveries',
-    'inventory', 'movements', 'categories'
+    'inventory', 'movements', 'categories', 'routes'
   ) then
     raise exception 'unknown_collection' using errcode = '42501';
   end if;
@@ -56,8 +57,8 @@ begin
     if v_is_admin then
       v_data := coalesce(v_row -> 'data', '{}'::jsonb);
     else
-      if p_collection in ('orders', 'deliveries') then
-        -- Drivers may only touch deliveries assigned to them.
+      if p_collection in ('orders', 'deliveries', 'routes') then
+        -- Drivers may only touch deliveries/routes assigned to them.
         if coalesce(v_row -> 'data' ->> 'driverId', '') <> v_uid then
           continue;
         end if;

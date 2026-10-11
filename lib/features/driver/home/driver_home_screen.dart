@@ -8,6 +8,7 @@ import '../../../providers/delivery_provider.dart';
 import '../deliveries/delivery_list_screen.dart';
 import '../earnings/driver_earnings_screen.dart';
 import '../navigation/driver_navigation_screen.dart';
+import '../routes/my_routes_screen.dart';
 
 class DriverHomeScreen extends ConsumerStatefulWidget {
   const DriverHomeScreen({super.key});
@@ -137,6 +138,19 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                         Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (_) => const DeliveryListScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    _DriverCard(
+                      icon: Icons.alt_route,
+                      label: StringConstants.frMyRoutes,
+                      color: Colors.indigo,
+                      badge: null,
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const MyRoutesScreen(),
                           ),
                         );
                       },

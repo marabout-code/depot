@@ -12,6 +12,7 @@ import '../inventory/inventory_list_screen.dart';
 import '../reports/reports_screen.dart';
 import '../settings/settings_screen.dart';
 import '../settings/license_dialog.dart';
+import '../routes/route_list_screen.dart';
 
 class AdminDashboardScreen extends ConsumerWidget {
   const AdminDashboardScreen({super.key});
@@ -168,6 +169,19 @@ class AdminDashboardScreen extends ConsumerWidget {
                       Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => const DriverListScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _DashboardCard(
+                    icon: Icons.route,
+                    label: 'Tournées',
+                    color: Colors.indigo,
+                    locked: locked,
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const RouteListScreen(),
                         ),
                       );
                     },

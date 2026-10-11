@@ -158,7 +158,7 @@ begin
 
   if p_collection not in (
     'users', 'products', 'orders', 'deliveries',
-    'inventory', 'movements', 'categories'
+    'inventory', 'movements', 'categories', 'routes'
   ) then
     raise exception 'unknown_collection' using errcode = '42501';
   end if;

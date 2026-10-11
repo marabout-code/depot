@@ -210,6 +210,29 @@ class StringConstants {
   static const String frBackOnline = 'Le système est de nouveau en ligne. Synchronisation...';
   static const String frOffline = 'Mode hors ligne. Les données seront synchronisées dès le retour du réseau.';
 
+  // Routes / tournées
+  static const String frRoutes = 'Tournées';
+  static const String frRouteList = 'Liste des tournées';
+  static const String frCreateRoute = 'Nouvelle tournée';
+  static const String frRouteDetail = 'Détail de la tournée';
+  static const String frRouteName = 'Nom de la tournée';
+  static const String frRouteDate = 'Date';
+  static const String frRouteOrders = 'Commandes';
+  static const String frSelectOrders = 'Sélectionner les commandes';
+  static const String frNoRoutes = 'Aucune tournée trouvée';
+  static const String frRoutesOn = 'Aucune commande sélectionnée';
+  static const String frRouteSaved = 'Tournée enregistrée';
+  static const String frRouteDeleted = 'Tournée supprimée';
+  static const String frRouteStatusPlanned = 'Planifiée';
+  static const String frRouteStatusInProgress = 'En cours';
+  static const String frRouteStatusCompleted = 'Terminée';
+  static const String frRouteStatusCancelled = 'Annulée';
+  static const String frStartRoute = 'Démarrer la tournée';
+  static const String frCompleteRoute = 'Terminer la tournée';
+  static const String frMyRoutes = 'Mes tournées';
+  static const String frNoActiveRoutes = 'Aucune tournée active';
+  static const String frRouteProgress = 'Progression';
+
   // Auth / Registration
   static const String frCreateAccount = 'Créer un compte';
   static const String frAlreadyHaveAccount = 'Déjà un compte ?';

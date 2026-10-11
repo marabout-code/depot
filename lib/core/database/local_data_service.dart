@@ -30,6 +30,7 @@ class LocalDataService {
     'inventory': 'productName',
     'products': 'name',
     'categories': 'name',
+    'routes': 'date',
   };
 
   Future<String> createDocument(

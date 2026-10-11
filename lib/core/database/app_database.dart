@@ -117,6 +117,7 @@ const List<String> kCollections = [
   'inventory',
   'movements',
   'categories',
+  'routes',
 ];
 
 /// The single local database handle, shared by the auth, data and sync layers.

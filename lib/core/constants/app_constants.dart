@@ -11,6 +11,7 @@ class AppConstants {
   static const String inventoryCollection = 'inventory';
   static const String movementsCollection = 'movements';
   static const String categoriesCollection = 'categories';
+  static const String routesCollection = 'routes';
 
   static const String secureTokenKey = 'auth_token';
   static const String secureRoleKey = 'user_role';
