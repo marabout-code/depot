@@ -70,9 +70,11 @@ class DriverDetailScreen extends ConsumerWidget {
                   style: GoogleFonts.roboto(
                       fontSize: 20, fontWeight: FontWeight.bold)),
               const SizedBox(height: 4),
-              Text(driver.email,
-                  style: GoogleFonts.roboto(
-                      fontSize: 14, color: Colors.grey[600])),
+              if (driver.email.isNotEmpty &&
+                  !driver.email.endsWith('@depot.local'))
+                Text(driver.email,
+                    style: GoogleFonts.roboto(
+                        fontSize: 14, color: Colors.grey[600])),
               if (driver.phone.isNotEmpty)
                 Text(driver.phone,
                     style: GoogleFonts.roboto(

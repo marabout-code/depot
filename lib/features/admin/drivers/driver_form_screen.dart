@@ -24,7 +24,6 @@ class DriverFormScreen extends ConsumerStatefulWidget {
 class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _pinController = TextEditingController();
   final _plateController = TextEditingController();
@@ -43,7 +42,6 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
       _isEditing = true;
       final d = widget.existingDriver!;
       _nameController.text = d.name;
-      _emailController.text = d.email;
       _phoneController.text = d.phone;
       // The plaintext PIN is never persisted or synced, so it cannot be shown
       // back to the form. An empty field means "keep the current PIN".
@@ -61,7 +59,6 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
   @override
   void dispose() {
     _nameController.dispose();
-    _emailController.dispose();
     _phoneController.dispose();
     _pinController.dispose();
     _plateController.dispose();
@@ -79,12 +76,18 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
       color: _colorController.text.trim(),
     );
 
+    // Drivers sign in with a PIN; the underlying auth account still needs a
+    // unique e-mail, so a private one is generated and never surfaced in the UI.
+    final email = _isEditing
+        ? widget.existingDriver!.email
+        : _syntheticEmail();
+
     final driver = DriverModel(
       id: _isEditing
           ? widget.existingDriver!.id
           : const Uuid().v4(),
       name: _nameController.text.trim(),
-      email: _emailController.text.trim(),
+      email: email,
       phone: _phoneController.text.trim(),
       pinCode: _pinController.text.trim(),
       vehicle: vehicle,
@@ -152,20 +155,6 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
                 prefixIcon: const Icon(Icons.person),
               ),
               validator: (v) => v?.isEmpty == true ? 'Nom requis' : null,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _emailController,
-              decoration: InputDecoration(
-                labelText: StringConstants.frDriverEmail,
-                prefixIcon: const Icon(Icons.email),
-              ),
-              keyboardType: TextInputType.emailAddress,
-              validator: (v) {
-                if (v?.isEmpty == true) return 'Email requis';
-                if (!v!.contains('@')) return 'Email invalide';
-                return null;
-              },
             ),
             const SizedBox(height: 12),
             TextFormField(
@@ -252,6 +241,11 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
       ),
     );
   }
+
+  /// Drivers sign in with a PIN, so no real e-mail is collected; a unique,
+  /// non-routable address keeps the auth account valid without exposing it.
+  static String _syntheticEmail() =>
+      'driver_${const Uuid().v4().substring(0, 8)}@depot.local';
 
   Widget _sectionTitle(String title) {
     return Text(title,

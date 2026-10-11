@@ -1,6 +1,7 @@
 import 'package:depot_distribution_app/core/database/app_database.dart';
 import 'package:depot_distribution_app/core/database/local_auth_service.dart';
 import 'package:depot_distribution_app/core/database/local_data_service.dart';
+import 'package:depot_distribution_app/core/services/backup_service.dart';
 import 'package:depot_distribution_app/models/user_model.dart';
 import 'package:depot_distribution_app/models/user_role.dart';
 // Only for the `&` operator on expressions; the drift matchers would collide
@@ -8,6 +9,7 @@ import 'package:depot_distribution_app/models/user_role.dart';
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'dart:convert';
 
 void main() {
   late AppDatabase db;
@@ -15,6 +17,8 @@ void main() {
   late LocalDataService data;
 
   setUp(() async {
+    // The backup round-trip test opens a second in-memory database on purpose.
+    driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
     db = AppDatabase.forTesting(NativeDatabase.memory());
     auth = LocalAuthService(db);
     data = LocalDataService(db);
@@ -171,6 +175,46 @@ void main() {
       expect(row.dirty, isTrue);
       expect(row.version, 2);
       expect(decodePayload(row.payload)['name'], 'Renamed');
+    });
+  });
+
+  group('BackupService', () {
+    test('export strips PIN material and round-trips through restore', () async {
+      await data.createDocument('users', {
+        'id': 'u1',
+        'name': 'Driver One',
+        'email': 'driver_abc@depot.local',
+        'role': UserRole.driver.value,
+        'status': 'active',
+        'offlinePinHash': r'$2a$10$abcdef',
+        'pinCode': '1234',
+        'createdAt': DateTime.now().toIso8601String(),
+        'updatedAt': DateTime.now().toIso8601String(),
+      }, docId: 'u1');
+      await data.createDocument('products', {
+        'id': 'p1',
+        'name': 'Bottle',
+        'price': 100.0,
+        'createdAt': DateTime.now().toIso8601String(),
+        'updatedAt': DateTime.now().toIso8601String(),
+      }, docId: 'p1');
+
+      final json = await BackupService(db).exportRawJsonString();
+      final decoded = jsonDecode(json) as Map<String, dynamic>;
+
+      final users = (decoded['users'] as List).cast<Map<String, dynamic>>();
+      final exportedUser = users.first['data'] as Map<String, dynamic>;
+      expect(exportedUser.containsKey('offlinePinHash'), isFalse);
+      expect(exportedUser.containsKey('pinCode'), isFalse);
+
+      final db2 = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db2.close);
+      final restored = await BackupService(db2).importFromJsonString(json);
+      expect(restored, 2);
+
+      final product = await LocalDataService(db2)
+          .rawDocument('products', 'p1');
+      expect(product!['name'], 'Bottle');
     });
   });
 }

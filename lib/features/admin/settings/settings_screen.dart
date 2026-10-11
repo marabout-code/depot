@@ -1,10 +1,10 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/string_constants.dart';
@@ -203,38 +203,10 @@ class SettingsScreen extends ConsumerWidget {
                   title:
                       Text('Exporter les données', style: GoogleFonts.roboto()),
                   subtitle: Text(
-                    'Partager la sauvegarde JSON',
+                    'Choisir l\'emplacement du fichier JSON',
                     style: GoogleFonts.roboto(fontSize: 13, color: Colors.grey),
                   ),
-                  onTap: () async {
-                    final backup = ref.read(backupServiceProvider);
-                    final scaffold = ScaffoldMessenger.of(context);
-                    try {
-                      final dir = await getApplicationDocumentsDirectory();
-                      final fileName =
-                          'sauvegarde_${DateTime.now().millisecondsSinceEpoch}.json';
-                      final file = File('${dir.path}/$fileName');
-                      final json = await backup.exportRawJsonString();
-                      await file.writeAsString(json);
-                      if (context.mounted) {
-                        scaffold.showSnackBar(
-                          SnackBar(
-                            content: Text('Sauvegarde enregistrée'),
-                            backgroundColor: AppTheme.primaryColor,
-                          ),
-                        );
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        scaffold.showSnackBar(
-                          SnackBar(
-                            content: Text('Erreur : $e'),
-                            backgroundColor: AppTheme.errorColor,
-                          ),
-                        );
-                      }
-                    }
-                  },
+                  onTap: () => _exportBackup(context, ref),
                 ),
                 ListTile(
                   leading: const Icon(Icons.file_download_outlined),
@@ -395,6 +367,52 @@ class SettingsScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _exportBackup(BuildContext context, WidgetRef ref) async {
+    final scaffold = ScaffoldMessenger.of(context);
+    try {
+      final backup = ref.read(backupServiceProvider);
+      final json = await backup.exportRawJsonString();
+      final fileName =
+          'sauvegarde_${DateTime.now().millisecondsSinceEpoch}.json';
+      final bytes = Uint8List.fromList(utf8.encode(json));
+
+      // Opens the system "save as" dialog so the user chooses the destination.
+      final path = await FilePicker.platform.saveFile(
+        dialogTitle: 'Enregistrer la sauvegarde',
+        fileName: fileName,
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+        bytes: bytes,
+      );
+      if (path == null) return; // Cancelled by the user.
+
+      // Some platforms only return the chosen path and leave the write to us.
+      try {
+        final file = File(path);
+        if (!await file.exists() || await file.length() == 0) {
+          await file.writeAsBytes(bytes, flush: true);
+        }
+      } catch (_) {
+        // Android already wrote the bytes; a content:// path is not directly
+        // writable, which is fine here.
+      }
+
+      scaffold.showSnackBar(
+        SnackBar(
+          content: Text('Sauvegarde enregistrée'),
+          backgroundColor: AppTheme.primaryColor,
+        ),
+      );
+    } catch (e) {
+      scaffold.showSnackBar(
+        SnackBar(
+          content: Text('Erreur : $e'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+    }
   }
 
   Future<void> _pickAndRestore(BuildContext context, WidgetRef ref) async {

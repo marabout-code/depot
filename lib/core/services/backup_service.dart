@@ -45,13 +45,23 @@ class BackupService {
             ..where((d) => d.collection.equals(collection) & d.deleted.equals(false)))
           .get();
 
-      data[collection] = rows
-          .map((row) => {
-                'id': row.docId,
-                'data': decodePayload(row.payload),
-                'version': row.version,
-              })
-          .toList();
+      data[collection] = rows.map((row) {
+        final payload = Map<String, dynamic>.from(decodePayload(row.payload));
+        if (collection == AppConstants.usersCollection) {
+          // PIN material must never leave the device in a backup: the offline
+          // hash is device-local by design and the plaintext is never stored.
+          payload
+            ..remove('offlinePinHash')
+            ..remove('pinOfflineHash')
+            ..remove('pin_offline_hash')
+            ..remove('pinCode');
+        }
+        return {
+          'id': row.docId,
+          'data': payload,
+          'version': row.version,
+        };
+      }).toList();
     }
 
     return const JsonEncoder.withIndent('  ').convert(data);

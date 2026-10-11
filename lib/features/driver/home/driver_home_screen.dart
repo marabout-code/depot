@@ -263,11 +263,13 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                       style: GoogleFonts.roboto(
                           fontSize: 20, fontWeight: FontWeight.bold)),
                 ),
-                Center(
-                  child: Text(user.email,
-                      style: GoogleFonts.roboto(
-                          fontSize: 14, color: Colors.grey[600])),
-                ),
+                if (user.email.isNotEmpty &&
+                    !user.email.endsWith('@depot.local'))
+                  Center(
+                    child: Text(user.email,
+                        style: GoogleFonts.roboto(
+                            fontSize: 14, color: Colors.grey[600])),
+                  ),
                 const SizedBox(height: 24),
                 Text(StringConstants.frPersonalInfo,
                     style: GoogleFonts.roboto(
