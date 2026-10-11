@@ -66,7 +66,11 @@ class DriverNotifier extends StateNotifier<DriversState> {
   /// trip. The account creation itself calls `admin_create_user`, which needs a
   /// connection; without one the driver is still created locally and the row
   /// syncs later, but the PIN cannot be verified on other devices until then.
-  Future<void> saveDriver(DriverModel driver) async {
+  ///
+  /// [depotId] is required when the caller has no depot of its own (a
+  /// superadmin or a legacy admin); a depot-scoped admin's drivers are always
+  /// bound to that admin's depot by the server.
+  Future<void> saveDriver(DriverModel driver, {String? depotId}) async {
     state = state.copyWith(status: DriversStatus.loading);
     try {
       final normalizedPin =
@@ -80,6 +84,7 @@ class DriverNotifier extends StateNotifier<DriversState> {
           pin: normalizedPin,
           role: UserRole.driver,
           phone: driver.phone,
+          depotId: depotId,
         );
       } catch (e) {
         state = state.copyWith(
@@ -91,7 +96,7 @@ class DriverNotifier extends StateNotifier<DriversState> {
 
       final uid = registered?.id ?? driver.id;
       final data = {
-        ...driver.copyWith(id: uid).toMap(),
+        ...driver.copyWith(id: uid, depotId: depotId).toMap(),
         'role': 'driver',
       }..remove('pinCode'); // A synced document must never carry the plaintext PIN.
 

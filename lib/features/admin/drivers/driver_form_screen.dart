@@ -7,6 +7,8 @@ import '../../../core/constants/string_constants.dart';
 import '../../../core/services/local_first_auth_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../models/driver_model.dart';
+import '../../../providers/auth_provider.dart';
+import '../../../providers/depot_provider.dart';
 import '../../../providers/driver_provider.dart';
 
 /// Kept in one place so the admin form and the login keypad cannot disagree.
@@ -32,8 +34,18 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
 
   String _vehicleType = 'Motorcycle';
   bool _isEditing = false;
+  String? _selectedDepotId;
 
   static const _vehicleTypes = ['Car', 'Motorcycle', 'Truck'];
+
+  /// A caller without a depot of its own (superadmin or a legacy admin) must
+  /// choose the depot the driver belongs to.
+  bool _needsDepotPicker(BuildContext context, WidgetRef ref) {
+    if (_isEditing) return false;
+    final user = ref.read(authProvider).user;
+    final depotId = user?.depotId;
+    return depotId == null || depotId.isEmpty;
+  }
 
   @override
   void initState() {
@@ -53,6 +65,17 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
       _commissionController.text = d.commissionRate.toStringAsFixed(1);
     } else {
       _commissionController.text = '10.0';
+    }
+
+    // A caller without a depot must pick one for the new driver; make sure the
+    // depot list is loaded before the picker renders.
+    final user = ref.read(authProvider).user;
+    final userDepotId = user?.depotId;
+    if (widget.existingDriver == null &&
+        (userDepotId == null || userDepotId.isEmpty)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(depotProvider.notifier).loadDepots();
+      });
     }
   }
 
@@ -93,6 +116,7 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
       vehicle: vehicle,
       commissionRate: double.tryParse(_commissionController.text) ?? 10.0,
       createdAt: _isEditing ? widget.existingDriver!.createdAt : null,
+      depotId: _isEditing ? widget.existingDriver!.depotId : _selectedDepotId,
     );
 
     if (_isEditing) {
@@ -101,7 +125,10 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
             driver.toMap(),
           );
     } else {
-      await ref.read(driverProvider.notifier).saveDriver(driver);
+      await ref.read(driverProvider.notifier).saveDriver(
+            driver,
+            depotId: _selectedDepotId,
+          );
     }
 
     if (mounted) {
@@ -119,6 +146,8 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(driverProvider);
     final isLoading = state.status == DriversStatus.loading;
+    final needsDepot = _needsDepotPicker(context, ref);
+    final depots = ref.watch(depotProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -188,6 +217,33 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
               },
             ),
             const SizedBox(height: 24),
+            if (needsDepot) ...[
+              _sectionTitle('Dépôt'),
+              const SizedBox(height: 12),
+              if (depots.depots.isEmpty)
+                const Text(
+                  'Aucun dépôt disponible. Créez d\'abord un dépôt.',
+                  style: TextStyle(color: AppTheme.errorColor),
+                )
+              else
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedDepotId,
+                  decoration: const InputDecoration(
+                    labelText: 'Dépôt du conducteur *',
+                    prefixIcon: Icon(Icons.warehouse),
+                  ),
+                  items: depots.depots
+                      .map((d) => DropdownMenuItem(
+                            value: d.id,
+                            child: Text(d.displayName),
+                          ))
+                      .toList(),
+                  onChanged: (v) =>
+                      setState(() => _selectedDepotId = v),
+                  validator: (v) =>
+                      v == null ? 'Le dépôt est requis.' : null,
+                ),
+            ],
             _sectionTitle(StringConstants.frVehicle),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
