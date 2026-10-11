@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../constants/supabase_config.dart';
 import '../database/app_database.dart';
-import '../../models/user_role.dart';
 
 final syncServiceProvider = Provider<SyncService>((ref) {
   final service = SyncService(
@@ -87,6 +86,7 @@ class SyncService {
 
   final _controller = StreamController<SyncStatus>.broadcast();
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
+  RealtimeChannel? _realtimeChannel;
   Timer? _debounce;
   bool _running = false;
   SyncStatus _status = const SyncStatus();
@@ -118,7 +118,31 @@ class SyncService {
       }
     });
 
+    _subscribeRealtime();
+
     await syncNow();
+  }
+
+  /// Listens for other devices' writes to `sync_documents` so this device can
+  /// catch up immediately instead of waiting for its next poll. The event
+  /// carries no data we trust: it only triggers a normal sync pass, which pulls
+  /// whatever the caller is allowed to read under RLS.
+  void _subscribeRealtime() {
+    if (SupabaseConfig.isPlaceholder) return;
+    try {
+      _realtimeChannel = Supabase.instance.client
+          .channel('sync_documents_changes')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'sync_documents',
+            callback: (_) => scheduleSync(),
+          )
+          .subscribe();
+    } catch (_) {
+      // Realtime unavailable (e.g. publication not enabled): polling still
+      // keeps devices converged, just with more latency.
+    }
   }
 
   static bool _isOnline(List<ConnectivityResult> results) =>
@@ -289,27 +313,15 @@ class SyncService {
           ),
         );
 
-    // A pulled user row carries the offline bcrypt hash so this device can
-    // verify that user's PIN without connectivity. On deletion the hash is
-    // removed with the credential.
-    if (collection == 'users') {
-      if (remote['deleted'] == true) {
-        await (_db.delete(_db.localCredentials)
-              ..where((c) => c.userId.equals(id)))
-            .go();
-      } else {
-        final offlineHash = data['offlinePinHash'] as String?;
-        if (offlineHash != null && offlineHash.isNotEmpty) {
-          await _db.into(_db.localCredentials).insertOnConflictUpdate(
-                LocalCredentialsCompanion.insert(
-                  userId: id,
-                  offlinePinHash: offlineHash,
-                  role: data['role'] as String? ?? UserRole.driver.value,
-                  updatedAt: remoteUpdatedAt.toLocal(),
-                ),
-              );
-        }
-      }
+    // A deleted user's credential must not outlive the account. Offline PIN
+    // hashes are deliberately *not* pulled onto every device: each device
+    // caches only the PINs it verified or set while online (see
+    // LocalFirstAuthService.tryOnlinePinLogin / registerWithPin / setDriverPin),
+    // so a stolen device cannot brute-force every depot user's 4-digit PIN.
+    if (collection == 'users' && remote['deleted'] == true) {
+      await (_db.delete(_db.localCredentials)
+            ..where((c) => c.userId.equals(id)))
+          .go();
     }
   }
 
@@ -338,6 +350,10 @@ class SyncService {
   void dispose() {
     _debounce?.cancel();
     unawaited(_connectivitySub?.cancel());
+    final channel = _realtimeChannel;
+    if (channel != null) {
+      unawaited(Supabase.instance.client.removeChannel(channel));
+    }
     unawaited(_controller.close());
   }
 }
