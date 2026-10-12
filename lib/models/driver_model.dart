@@ -148,6 +148,7 @@ class DriverModel extends UserModel {
         status: UserStatus.fromString(map['status'] as String),
         pinCode: (map['pinCode'] as String?) ?? '',
         profileImage: map['profileImage'] as String?,
+        depotId: map['depotId'] as String?,
         createdAt: DateTime.parse(map['createdAt'] as String),
         updatedAt: DateTime.parse(map['updatedAt'] as String),
         vehicle: map['vehicle'] != null
@@ -179,6 +180,7 @@ class DriverModel extends UserModel {
       status: user.status,
       pinCode: user.pinCode,
       profileImage: user.profileImage,
+      depotId: user.depotId,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
       vehicle: vehicle ??

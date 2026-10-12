@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/string_constants.dart';
 import '../../../core/services/backup_service.dart';
+import '../../../core/services/demo_data_service.dart';
 import '../../../core/services/license_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../providers/auth_provider.dart';
@@ -197,6 +198,7 @@ class SettingsScreen extends ConsumerWidget {
                       ? null
                       : (value) => _toggleDemoData(context, ref, value),
                 ),
+                if (demoData.enabled) _demoAccountsSection(context),
               ],
             ),
           ),
@@ -440,6 +442,67 @@ class SettingsScreen extends ConsumerWidget {
         ),
         backgroundColor:
             error != null ? AppTheme.errorColor : AppTheme.primaryColor,
+      ),
+    );
+  }
+
+  Widget _demoAccountsSection(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Divider(height: 1),
+          const SizedBox(height: 12),
+          Text(
+            'Comptes de démonstration',
+            style: GoogleFonts.roboto(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Déconnectez-vous, puis connectez-vous avec l\'un de ces codes PIN '
+            'pour voir ce que chaque rôle peut faire.',
+            style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey),
+          ),
+          const SizedBox(height: 12),
+          for (final account in DemoDataService.accounts)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      account.label,
+                      style: GoogleFonts.roboto(fontSize: 13),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      account.pin,
+                      style: GoogleFonts.roboto(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 3,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }
