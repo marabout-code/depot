@@ -11,6 +11,7 @@ import '../../../core/constants/string_constants.dart';
 import '../../../core/services/backup_service.dart';
 import '../../../core/services/demo_data_service.dart';
 import '../../../core/services/license_service.dart';
+import '../../../core/services/sync_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/demo_data_provider.dart';
@@ -114,6 +115,10 @@ class SettingsScreen extends ConsumerWidget {
               ],
             ),
           ),
+          const SizedBox(height: 16),
+
+          // --- Synchronisation ---
+          const _SyncStatusCard(),
           const SizedBox(height: 16),
 
           // --- Apparence ---
@@ -627,5 +632,118 @@ class SettingsScreen extends ConsumerWidget {
         const SnackBar(content: Text('Information copiée')),
       );
     }
+  }
+}
+
+/// Live sync state for a depot operator on an unreliable link: whether the app
+/// is online, how many local changes are still queued, when the last pass
+/// succeeded, and a button to force one now.
+class _SyncStatusCard extends ConsumerWidget {
+  const _SyncStatusCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? Colors.grey[900] : Colors.white;
+    final status =
+        ref.watch(syncStatusProvider).valueOrNull ?? const SyncStatus();
+
+    final pending = status.pendingWrites;
+    final syncing = status.running;
+    final hasError = !syncing && status.online && status.lastError != null;
+
+    final IconData icon;
+    final Color color;
+    if (syncing) {
+      icon = Icons.sync;
+      color = AppTheme.primaryColor;
+    } else if (!status.online) {
+      icon = Icons.cloud_off;
+      color = AppTheme.secondaryColor;
+    } else if (hasError) {
+      icon = Icons.error_outline;
+      color = AppTheme.errorColor;
+    } else if (pending > 0) {
+      icon = Icons.cloud_upload;
+      color = AppTheme.secondaryColor;
+    } else {
+      icon = Icons.cloud_done;
+      color = AppTheme.primaryColor;
+    }
+
+    final String stateLabel = syncing
+        ? StringConstants.frSyncSyncing
+        : status.online
+            ? StringConstants.frSyncOnline
+            : StringConstants.frSyncOffline;
+
+    final String detail;
+    if (pending > 0) {
+      detail = '$pending ${StringConstants.frSyncQueued}';
+    } else if (hasError) {
+      detail = status.lastError!;
+    } else {
+      detail = StringConstants.frSyncAllSynced;
+    }
+
+    final lastAt = status.lastSyncedAt;
+
+    return Card(
+      color: bgColor,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Row(
+              children: [
+                const Icon(Icons.cloud_sync, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  StringConstants.frSyncTitle,
+                  style: GoogleFonts.roboto(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Spacer(),
+                Icon(icon, size: 18, color: color),
+                const SizedBox(width: 4),
+                Text(
+                  stateLabel,
+                  style: GoogleFonts.roboto(fontSize: 12, color: color),
+                ),
+              ],
+            ),
+          ),
+          ListTile(
+            leading: Icon(icon, color: color),
+            title: Text(detail, style: GoogleFonts.roboto(fontSize: 14)),
+            subtitle: Text(
+              lastAt == null
+                  ? StringConstants.frSyncNever
+                  : '${StringConstants.frSyncLastAt} ${_formatTime(lastAt)}',
+              style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey),
+            ),
+            trailing: syncing
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : IconButton(
+                    tooltip: StringConstants.frSyncNow,
+                    icon: const Icon(Icons.refresh),
+                    onPressed: () =>
+                        ref.read(syncServiceProvider).syncNow(),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _formatTime(DateTime d) {
+    String two(int v) => v.toString().padLeft(2, '0');
+    return '${two(d.day)}/${two(d.month)} ${two(d.hour)}:${two(d.minute)}';
   }
 }

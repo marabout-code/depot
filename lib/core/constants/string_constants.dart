@@ -209,6 +209,15 @@ class StringConstants {
   // Sync / connectivity
   static const String frBackOnline = 'Le système est de nouveau en ligne. Synchronisation...';
   static const String frOffline = 'Mode hors ligne. Les données seront synchronisées dès le retour du réseau.';
+  static const String frSyncTitle = 'Synchronisation';
+  static const String frSyncNow = 'Synchroniser maintenant';
+  static const String frSyncSyncing = 'Synchronisation…';
+  static const String frSyncOnline = 'En ligne';
+  static const String frSyncOffline = 'Hors ligne';
+  static const String frSyncAllSynced = 'Toutes les modifications sont enregistrées';
+  static const String frSyncQueued = 'en attente de synchronisation';
+  static const String frSyncLastAt = 'Dernière sync. :';
+  static const String frSyncNever = 'Pas encore synchronisé';
 
   // Routes / tournées
   static const String frRoutes = 'Tournées';

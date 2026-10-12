@@ -2,9 +2,17 @@ import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../database/app_database.dart';
+import '../services/sync_service.dart';
 
 final localDataServiceProvider = Provider<LocalDataService>((ref) {
-  return LocalDataService(ref.read(appDatabaseProvider));
+  return LocalDataService(
+    ref.read(appDatabaseProvider),
+    // Every local write nudges the sync engine, so an edit made while online
+    // reaches the server on the next pass instead of waiting for a connectivity
+    // change, a realtime event or the next app launch — the situation that left
+    // changes stranded for hours on an unreliable connection.
+    onWrite: () => ref.read(syncServiceProvider).scheduleSync(),
+  );
 });
 
 /// Local-first data access.
@@ -15,9 +23,13 @@ final localDataServiceProvider = Provider<LocalDataService>((ref) {
 /// rows and the sync engine drains them later, so the UI never blocks on a
 /// round trip and keeps working with the radio off.
 class LocalDataService {
-  LocalDataService(this._db);
+  LocalDataService(this._db, {this.onWrite});
 
   final AppDatabase _db;
+
+  /// Invoked after every write that changed a row, so the sync engine can queue
+  /// a pass. Optional so tests can construct the service without a sync layer.
+  final void Function()? onWrite;
 
   /// Filters and sorts happen in Dart over the decoded payload. The depot
   /// dataset is small enough that this stays well under a frame, and it keeps
@@ -51,6 +63,7 @@ class LocalDataService {
           ),
           mode: InsertMode.insertOrReplace,
         );
+    onWrite?.call();
     return id;
   }
 
@@ -172,6 +185,7 @@ class LocalDataService {
         deleted: const Value(false),
       ),
     );
+    onWrite?.call();
   }
 
   /// Soft delete: the tombstone has to reach other devices.
@@ -192,6 +206,7 @@ class LocalDataService {
         deleted: const Value(true),
       ),
     );
+    onWrite?.call();
   }
 
   /// Applies many operations in one transaction.
@@ -250,6 +265,7 @@ class LocalDataService {
         }
       }
     });
+    onWrite?.call();
   }
 
   Future<Document?> _rowFor(String collection, String docId) {
