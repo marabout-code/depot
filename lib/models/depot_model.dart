@@ -1,4 +1,10 @@
 class DepotModel {
+  /// The only two values the `depots.status` check constraint allows. A
+  /// deactivated depot keeps its accounts and data but can no longer be the
+  /// target of a new account (see `admin_create_user`).
+  static const String statusActive = 'active';
+  static const String statusInactive = 'inactive';
+
   final String id;
   final String name;
   final String city;
@@ -11,12 +17,16 @@ class DepotModel {
     required this.name,
     this.city = '',
     this.address = '',
-    this.status = 'active',
+    this.status = statusActive,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
   String get displayName =>
       city.isNotEmpty ? '$name · $city' : name;
+
+  bool get isActive => status == statusActive;
+
+  bool get isInactive => !isActive;
 
   Map<String, dynamic> toMap() {
     return {

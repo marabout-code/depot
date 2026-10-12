@@ -149,6 +149,8 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
     final isLoading = state.status == DriversStatus.loading;
     final needsDepot = _needsDepotPicker(context, ref);
     final depots = ref.watch(depotProvider);
+    final activeDepots =
+        depots.depots.where((d) => d.isActive).toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -231,9 +233,9 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
             if (needsDepot) ...[
               _sectionTitle('Dépôt'),
               const SizedBox(height: 12),
-              if (depots.depots.isEmpty)
+              if (activeDepots.isEmpty)
                 const Text(
-                  'Aucun dépôt disponible. Créez d\'abord un dépôt.',
+                  'Aucun dépôt actif disponible. Créez d\'abord un dépôt.',
                   style: TextStyle(color: AppTheme.errorColor),
                 )
               else
@@ -243,7 +245,7 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
                     labelText: 'Dépôt du conducteur *',
                     prefixIcon: Icon(Icons.warehouse),
                   ),
-                  items: depots.depots
+                  items: activeDepots
                       .map((d) => DropdownMenuItem(
                             value: d.id,
                             child: Text(d.displayName),

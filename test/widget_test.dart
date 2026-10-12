@@ -112,6 +112,40 @@ void main() {
       final map = depot.toMap();
       expect(map['name'], 'Bafoussam');
       expect(map['address'], 'Rue de la Mairie');
+      expect(map['status'], 'active');
+    });
+
+    test('defaults to active when status is missing', () {
+      final depot = DepotModel.fromMap({
+        'id': 'd2',
+        'name': 'Douala',
+        'createdAt': '2026-01-01T10:00:00.000Z',
+      });
+      expect(depot.status, 'active');
+      expect(depot.isActive, isTrue);
+      expect(depot.isInactive, isFalse);
+      expect(depot.displayName, 'Douala');
+    });
+
+    test('isActive reflects the status field', () {
+      final inactive = DepotModel(
+        id: 'd3',
+        name: 'Yaoundé',
+        status: DepotModel.statusInactive,
+      );
+      expect(inactive.isActive, isFalse);
+      expect(inactive.isInactive, isTrue);
+      expect(inactive.displayName, 'Yaoundé');
+    });
+
+    test('copyWith changes status without touching other fields', () {
+      final depot = DepotModel(id: 'd4', name: 'Centre', city: 'Ebolowa');
+      final inactive = depot.copyWith(status: DepotModel.statusInactive);
+      expect(inactive.id, 'd4');
+      expect(inactive.name, 'Centre');
+      expect(inactive.city, 'Ebolowa');
+      expect(inactive.isActive, isFalse);
+      expect(depot.isActive, isTrue);
     });
   });
 
