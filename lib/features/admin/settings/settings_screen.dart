@@ -12,6 +12,7 @@ import '../../../core/services/backup_service.dart';
 import '../../../core/services/license_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../providers/demo_data_provider.dart';
 import '../../../providers/theme_provider.dart';
 import 'license_dialog.dart';
 import 'category_settings_screen.dart';
@@ -24,6 +25,7 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
     final authState = ref.watch(authProvider);
+    final demoData = ref.watch(demoDataProvider);
     final license = ref.watch(licenseServiceProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? Colors.grey[900] : Colors.white;
@@ -148,6 +150,52 @@ class SettingsScreen extends ConsumerWidget {
                   onChanged: (_) {
                     ref.read(themeModeProvider.notifier).toggle();
                   },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // --- Démonstration ---
+          Card(
+            color: bgColor,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.science_outlined, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Démonstration',
+                        style: GoogleFonts.roboto(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SwitchListTile(
+                  title: Text(
+                    'Données de démonstration',
+                    style: GoogleFonts.roboto(),
+                  ),
+                  subtitle: Text(
+                    demoData.enabled
+                        ? 'Des exemples de produits, commandes et tournées sont affichés.'
+                        : 'Ajouter des exemples pour présenter l\'application.',
+                    style: GoogleFonts.roboto(
+                      color: Colors.grey,
+                      fontSize: 13,
+                    ),
+                  ),
+                  value: demoData.enabled,
+                  activeThumbColor: AppTheme.primaryColor,
+                  onChanged: demoData.busy
+                      ? null
+                      : (value) => _toggleDemoData(context, ref, value),
                 ),
               ],
             ),
@@ -347,9 +395,13 @@ class SettingsScreen extends ConsumerWidget {
                         child: const Text('Annuler'),
                       ),
                       TextButton(
-                        onPressed: () {
+                        onPressed: () async {
                           Navigator.of(ctx).pop();
-                          ref.read(authProvider.notifier).logout();
+                          await ref.read(authProvider.notifier).logout();
+                          // Leaving the depot device signed in would expose the
+                          // next user's data, so logout closes the app outright
+                          // rather than dropping back to the PIN screen.
+                          await SystemNavigator.pop();
                         },
                         child: Text(
                           StringConstants.frLogout,
@@ -365,6 +417,29 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _toggleDemoData(
+    BuildContext context,
+    WidgetRef ref,
+    bool value,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    await ref.read(demoDataProvider.notifier).setEnabled(value);
+    final error = ref.read(demoDataProvider).error;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          error != null
+              ? 'Erreur : $error'
+              : value
+                  ? 'Données de démonstration activées.'
+                  : 'Données de démonstration supprimées.',
+        ),
+        backgroundColor:
+            error != null ? AppTheme.errorColor : AppTheme.primaryColor,
       ),
     );
   }
