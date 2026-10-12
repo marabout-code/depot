@@ -31,7 +31,9 @@ final demoDataServiceProvider = Provider<DemoDataService>((ref) {
 /// The dataset mirrors the production multi-depot model so the role differences
 /// are visible end to end:
 ///
-///   * two depots, each owning its own products, stock, orders and staff;
+///   * two active depots, each owning its own products, stock, orders and
+///     staff, plus a third deactivated (and still empty) depot so the
+///     `Actif`/`Inactif` states are both visible in the depot list;
 ///   * one `superadmin` with no depot (unrestricted — sees everything);
 ///   * one `admin` bound to each depot (scoped to that depot);
 ///   * drivers bound to a depot;
@@ -57,6 +59,7 @@ class DemoDataService {
 
   static const String depot1Id = 'demo_depot_1';
   static const String depot2Id = 'demo_depot_2';
+  static const String depot3Id = 'demo_depot_3';
 
   /// The demo staff accounts and the PIN each one signs in with.
   ///
@@ -215,6 +218,7 @@ class DemoDataService {
         name: 'Dépôt Central',
         city: 'Douala',
         address: 'Rue des Palmiers, Bonabéri',
+        status: DepotModel.statusActive,
         createdAt: now,
       ).toMap(),
       depotId: depot1Id,
@@ -227,9 +231,25 @@ class DemoDataService {
         name: 'Dépôt Yaoundé',
         city: 'Yaoundé',
         address: 'Avenue Kennedy, Centre',
+        status: DepotModel.statusActive,
         createdAt: now,
       ).toMap(),
       depotId: depot2Id,
+    );
+    // Deactivated and still empty: exercises the `Inactif` state in the list
+    // (and the active-only filter in the driver form) without any staff or data.
+    add(
+      'depots',
+      depot3Id,
+      DepotModel(
+        id: depot3Id,
+        name: 'Dépôt Bafoussam',
+        city: 'Bafoussam',
+        address: 'Route de Foumban',
+        status: DepotModel.statusInactive,
+        createdAt: now,
+      ).toMap(),
+      depotId: depot3Id,
     );
 
     // --- Comptes (superadmin, un admin par dépôt, conducteurs) ---
