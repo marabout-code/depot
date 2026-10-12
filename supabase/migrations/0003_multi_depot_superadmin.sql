@@ -47,17 +47,6 @@ create table if not exists public.depots (
 
 alter table public.depots enable row level security;
 
-drop policy if exists depots_select on public.depots;
-create policy depots_select on public.depots
-  for select to authenticated
-  using (public.is_unrestricted() or id = public.depot_of_user(auth.uid()));
-
-drop policy if exists depots_admin_write on public.depots;
-create policy depots_admin_write on public.depots
-  for all to authenticated
-  using (public.is_unrestricted())
-  with check (public.is_unrestricted());
-
 -- ---------------------------------------------------------------------------
 -- app_users: depot column + widened role check
 -- ---------------------------------------------------------------------------
@@ -134,6 +123,24 @@ as $$
       and u.status = 'active'
   );
 $$;
+
+-- ---------------------------------------------------------------------------
+-- Depots RLS
+-- ---------------------------------------------------------------------------
+-- Placed after the role helpers above: `create policy` resolves function
+-- references while parsing the expression, so is_unrestricted() / depot_of_user()
+-- must already exist.
+
+drop policy if exists depots_select on public.depots;
+create policy depots_select on public.depots
+  for select to authenticated
+  using (public.is_unrestricted() or id = public.depot_of_user(auth.uid()));
+
+drop policy if exists depots_admin_write on public.depots;
+create policy depots_admin_write on public.depots
+  for all to authenticated
+  using (public.is_unrestricted())
+  with check (public.is_unrestricted());
 
 -- ---------------------------------------------------------------------------
 -- app_users RLS: same depot (or legacy null rows) for depot admins, all for
