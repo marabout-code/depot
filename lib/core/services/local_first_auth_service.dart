@@ -169,26 +169,6 @@ class LocalFirstAuthService {
   /// True when the shared-device wrong-PIN throttle is engaged.
   Future<bool> isDeviceLockedOut() => _localAuth.isDeviceLockedOut();
 
-  /// Admin email + password sign-in. Used when a PIN is forgotten.
-  Future<UserModel?> loginWithEmail(String email, String password) async {
-    try {
-      final response = await Supabase.instance.client.auth
-          .signInWithPassword(email: email.trim(), password: password);
-      final authUser = response.user;
-      if (authUser == null) return null;
-
-      final user = await _loadProfile(authUser.id);
-      if (user != null) {
-        await _secureStorage.saveRole(user.role.value);
-        await _secureStorage.cacheUser(user);
-      }
-      _sync.scheduleSync();
-      return user;
-    } catch (_) {
-      return null;
-    }
-  }
-
   Future<UserModel?> _loadProfile(String userId) async {
     // Local database first: it is the source of truth and works offline.
     final local = await _localAuth.loadUser(userId);

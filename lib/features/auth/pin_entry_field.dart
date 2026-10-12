@@ -50,6 +50,7 @@ class _PinDots extends StatefulWidget {
 
 class _PinDotsState extends State<_PinDots> {
   final _controller = TextEditingController();
+  bool _obscure = true;
 
   @override
   void dispose() {
@@ -61,7 +62,7 @@ class _PinDotsState extends State<_PinDots> {
   Widget build(BuildContext context) {
     return TextField(
       controller: _controller,
-      obscureText: true,
+      obscureText: _obscure,
       keyboardType: TextInputType.number,
       maxLength: widget.length,
       obscuringCharacter: '●',
@@ -93,6 +94,14 @@ class _PinDotsState extends State<_PinDots> {
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 14,
+        ),
+        suffixIcon: IconButton(
+          tooltip: _obscure ? 'Afficher le code' : 'Masquer le code',
+          icon: Icon(
+            _obscure ? Icons.visibility_off : Icons.visibility,
+            size: 20,
+          ),
+          onPressed: () => setState(() => _obscure = !_obscure),
         ),
       ),
     );

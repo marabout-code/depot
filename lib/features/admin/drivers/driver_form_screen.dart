@@ -34,6 +34,7 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
 
   String _vehicleType = 'Motorcycle';
   bool _isEditing = false;
+  bool _obscurePin = true;
   String? _selectedDepotId;
 
   static const _vehicleTypes = ['Car', 'Motorcycle', 'Truck'];
@@ -197,12 +198,22 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
             const SizedBox(height: 12),
             TextFormField(
               controller: _pinController,
+              obscureText: _obscurePin,
+              obscuringCharacter: '●',
               decoration: InputDecoration(
                 labelText: _isEditing
                     ? 'Nouveau PIN (vide = inchangé)'
                     : StringConstants.frDriverPin,
                 prefixIcon: const Icon(Icons.pin),
                 hintText: '$pinLength chiffres',
+                suffixIcon: IconButton(
+                  tooltip: _obscurePin ? 'Afficher le code' : 'Masquer le code',
+                  icon: Icon(
+                    _obscurePin ? Icons.visibility_off : Icons.visibility,
+                  ),
+                  onPressed: () =>
+                      setState(() => _obscurePin = !_obscurePin),
+                ),
               ),
               keyboardType: TextInputType.number,
               maxLength: pinLength,

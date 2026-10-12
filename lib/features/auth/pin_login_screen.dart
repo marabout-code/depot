@@ -5,7 +5,7 @@ import '../../core/constants/string_constants.dart';
 import '../../core/services/local_first_auth_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/auth_provider.dart';
-import 'login_screen.dart';
+import 'register_screen.dart';
 
 class PinLoginScreen extends ConsumerStatefulWidget {
   const PinLoginScreen({super.key});
@@ -18,6 +18,10 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen> {
   final _pinController = TextEditingController();
   final _pinFocusNode = FocusNode();
   bool _showError = false;
+  bool _obscurePin = true;
+  // Hidden until we know the device has no accounts yet, so the bootstrap
+  // button never appears on an installation that already has a superadmin.
+  bool _showRegister = false;
 
   static const _pinLength = LocalFirstAuthService.pinLength;
 
@@ -25,6 +29,14 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen> {
   void initState() {
     super.initState();
     _pinFocusNode.requestFocus();
+    _checkForExistingAccounts();
+  }
+
+  Future<void> _checkForExistingAccounts() async {
+    final hasCredentials =
+        await ref.read(authServiceProvider).hasLocalCredentials();
+    if (!mounted) return;
+    setState(() => _showRegister = !hasCredentials);
   }
 
   @override
@@ -59,6 +71,36 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen> {
   void _submitPin() {
     _pinFocusNode.unfocus();
     ref.read(authProvider.notifier).loginWithPin(_pinController.text);
+  }
+
+  Widget _buildPinDisplay() {
+    final pin = _pinController.text;
+    if (!_obscurePin) {
+      return Text(
+        pin.isEmpty ? '····' : pin,
+        textAlign: TextAlign.center,
+        style: GoogleFonts.roboto(
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 16,
+        ),
+      );
+    }
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(_pinLength, (i) {
+        final filled = i < pin.length;
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 8),
+          width: 20,
+          height: 20,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: filled ? AppTheme.primaryColor : Colors.grey[300],
+          ),
+        );
+      }),
+    );
   }
 
   @override
@@ -96,32 +138,35 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 32),
-                Text(
-                  'Entrez votre code PIN',
-                  style: GoogleFonts.roboto(
-                    fontSize: 16,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                const SizedBox(height: 24),
-                // PIN dots display
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(_pinLength, (i) {
-                    final filled = i < _pinController.text.length;
-                    return Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 8),
-                      width: 20,
-                      height: 20,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: filled
-                            ? AppTheme.primaryColor
-                            : Colors.grey[300],
+                  children: [
+                    Text(
+                      'Entrez votre code PIN',
+                      style: GoogleFonts.roboto(
+                        fontSize: 16,
+                        color: Colors.grey[600],
                       ),
-                    );
-                  }),
+                    ),
+                    IconButton(
+                      tooltip: _obscurePin
+                          ? 'Afficher le code'
+                          : 'Masquer le code',
+                      icon: Icon(
+                        _obscurePin
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                        size: 20,
+                        color: Colors.grey[600],
+                      ),
+                      onPressed: () =>
+                          setState(() => _obscurePin = !_obscurePin),
+                    ),
+                  ],
                 ),
+                const SizedBox(height: 24),
+                // PIN display: dots, or the digits themselves when revealed.
+                _buildPinDisplay(),
                 if (_showError && authState.error != null) ...[
                   const SizedBox(height: 12),
                   Text(
@@ -136,28 +181,6 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen> {
                 const SizedBox(height: 32),
                 // Numeric keypad
                 _buildNumericKeypad(authState.isLoading),
-                const SizedBox(height: 24),
-                // Admin fallback for a forgotten PIN.
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const LoginScreen()),
-                    ),
-                    icon: const Icon(Icons.admin_panel_settings),
-                    label: Text(StringConstants.frAdminLogin),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppTheme.primaryColor,
-                      side: const BorderSide(color: AppTheme.primaryColor),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ),
                 const SizedBox(height: 16),
                 // Works without a connection, so it is worth saying so.
                 Row(
@@ -180,6 +203,24 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen> {
                     ),
                   ],
                 ),
+                // Only on a fresh installation: creates the first superadmin.
+                if (_showRegister) ...[
+                  const SizedBox(height: 16),
+                  TextButton(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const RegisterScreen()),
+                    ),
+                    child: Text(
+                      StringConstants.frCreateAccount,
+                      style: GoogleFonts.roboto(
+                        color: AppTheme.primaryColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

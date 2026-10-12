@@ -121,27 +121,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  /// Admin email + password fallback.
-  Future<void> login(String email, String password) async {
-    state = state.copyWith(isLoading: true, error: null);
-    try {
-      final user = await _authService.loginWithEmail(email, password);
-      if (user == null) {
-        state = state.copyWith(
-          isLoading: false,
-          error: 'Identifiants invalides ou aucune connexion.',
-        );
-        return;
-      }
-      state = AuthState(
-        status: AuthStatus.authenticated,
-        user: user,
-      );
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: _message(e));
-    }
-  }
-
   Future<void> register({
     required String email,
     required String name,
