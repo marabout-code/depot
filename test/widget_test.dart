@@ -102,7 +102,6 @@ void main() {
         'id': 'd1',
         'name': 'Bafoussam',
         'city': 'Bafoussam',
-        'address': 'Rue de la Mairie',
         'status': 'active',
         'createdAt': '2026-01-01T10:00:00.000Z',
       });
@@ -111,7 +110,6 @@ void main() {
       expect(depot.displayName, 'Bafoussam · Bafoussam');
       final map = depot.toMap();
       expect(map['name'], 'Bafoussam');
-      expect(map['address'], 'Rue de la Mairie');
       expect(map['status'], 'active');
     });
 

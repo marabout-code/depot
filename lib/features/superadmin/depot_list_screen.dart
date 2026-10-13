@@ -153,10 +153,9 @@ class _DepotListScreenState extends ConsumerState<DepotListScreen> {
           ],
         ),
         subtitle: Text(
-          [
-            if (depot.city.isNotEmpty) depot.city,
-            if (depot.address.isNotEmpty) depot.address,
-          ].join(' · '),
+          depot.city,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         trailing: PopupMenuButton<String>(
           enabled: !busy,

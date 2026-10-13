@@ -8,7 +8,6 @@ class DepotModel {
   final String id;
   final String name;
   final String city;
-  final String address;
   final String status;
   final DateTime createdAt;
 
@@ -16,7 +15,6 @@ class DepotModel {
     required this.id,
     required this.name,
     this.city = '',
-    this.address = '',
     this.status = statusActive,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
@@ -33,7 +31,6 @@ class DepotModel {
       'id': id,
       'name': name,
       'city': city,
-      'address': address,
       'status': status,
       'createdAt': createdAt.toIso8601String(),
     };
@@ -44,7 +41,6 @@ class DepotModel {
       id: map['id'] as String,
       name: map['name'] as String,
       city: (map['city'] as String?) ?? '',
-      address: (map['address'] as String?) ?? '',
       status: (map['status'] as String?) ?? 'active',
       createdAt: DateTime.tryParse(map['createdAt'] as String? ?? ''),
     );
@@ -54,7 +50,6 @@ class DepotModel {
     String? id,
     String? name,
     String? city,
-    String? address,
     String? status,
     DateTime? createdAt,
   }) {
@@ -62,7 +57,6 @@ class DepotModel {
       id: id ?? this.id,
       name: name ?? this.name,
       city: city ?? this.city,
-      address: address ?? this.address,
       status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,
     );

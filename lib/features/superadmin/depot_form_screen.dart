@@ -27,7 +27,6 @@ class _DepotFormScreenState extends ConsumerState<DepotFormScreen> {
 
   final _nameController = TextEditingController();
   final _cityController = TextEditingController();
-  final _addressController = TextEditingController();
   final _adminNameController = TextEditingController();
   String _adminPin = '';
   String _adminPinConfirm = '';
@@ -42,7 +41,6 @@ class _DepotFormScreenState extends ConsumerState<DepotFormScreen> {
     if (depot != null) {
       _nameController.text = depot.name;
       _cityController.text = depot.city;
-      _addressController.text = depot.address;
     }
   }
 
@@ -50,7 +48,6 @@ class _DepotFormScreenState extends ConsumerState<DepotFormScreen> {
   void dispose() {
     _nameController.dispose();
     _cityController.dispose();
-    _addressController.dispose();
     _adminNameController.dispose();
     super.dispose();
   }
@@ -71,7 +68,6 @@ class _DepotFormScreenState extends ConsumerState<DepotFormScreen> {
         id: widget.existing!.id,
         name: _nameController.text,
         city: _cityController.text,
-        address: _addressController.text,
       );
       if (!mounted) return;
       if (error != null) {
@@ -91,7 +87,6 @@ class _DepotFormScreenState extends ConsumerState<DepotFormScreen> {
     final result = await notifier.createDepot(
       name: _nameController.text,
       city: _cityController.text,
-      address: _addressController.text,
       adminName: _withAdmin ? _adminNameController.text : null,
       adminPin: _withAdmin ? _adminPin : null,
     );
@@ -160,17 +155,7 @@ class _DepotFormScreenState extends ConsumerState<DepotFormScreen> {
                   controller: _cityController,
                   textCapitalization: TextCapitalization.words,
                   decoration: const InputDecoration(
-                    labelText: 'Ville',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(12)),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _addressController,
-                  decoration: const InputDecoration(
-                    labelText: 'Adresse',
+                    labelText: 'Quartier',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.all(Radius.circular(12)),
                     ),

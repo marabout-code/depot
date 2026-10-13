@@ -232,14 +232,9 @@ class _InfoCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _InfoRow(
-            icon: Icons.location_city,
-            label: 'Ville',
-            value: depot.city.isEmpty ? '—' : depot.city,
-          ),
-          _InfoRow(
             icon: Icons.place_outlined,
-            label: 'Adresse',
-            value: depot.address.isEmpty ? '—' : depot.address,
+            label: 'Quartier',
+            value: depot.city.isEmpty ? '—' : depot.city,
           ),
           _InfoRow(
             icon: Icons.event,

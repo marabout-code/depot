@@ -115,7 +115,6 @@ class DepotNotifier extends StateNotifier<DepotsState> {
   Future<DepotCreationResult?> createDepot({
     required String name,
     required String city,
-    required String address,
     String? adminName,
     String? adminPin,
   }) async {
@@ -126,7 +125,6 @@ class DepotNotifier extends StateNotifier<DepotsState> {
       final result = await client.rpc('depot_create', params: {
         'p_name': name.trim(),
         'p_city': city.trim(),
-        'p_address': address.trim(),
       });
       final depotId = result?['id'] as String?;
       if (depotId == null) {
@@ -157,7 +155,6 @@ class DepotNotifier extends StateNotifier<DepotsState> {
           'id': depotId,
           'name': name.trim(),
           'city': city.trim(),
-          'address': address.trim(),
           'status': DepotModel.statusActive,
           'createdAt': now,
           'updatedAt': now,
@@ -173,13 +170,12 @@ class DepotNotifier extends StateNotifier<DepotsState> {
     }
   }
 
-  /// Renames / re-addresses a depot. Needs a connection: the authoritative
+  /// Renames a depot (neighborhood label). Needs a connection: the authoritative
   /// `depots` table is updated server side, then the local copy.
   Future<String?> updateDepot({
     required String id,
     required String name,
     required String city,
-    required String address,
   }) async {
     if (name.trim().isEmpty) return 'Le nom du dépôt est requis.';
 
@@ -189,12 +185,10 @@ class DepotNotifier extends StateNotifier<DepotsState> {
         'p_id': id,
         'p_name': name.trim(),
         'p_city': city.trim(),
-        'p_address': address.trim(),
       });
       await _data.updateDocument(AppConstants.depotsCollection, id, {
         'name': name.trim(),
         'city': city.trim(),
-        'address': address.trim(),
       });
       await loadDepots();
       return null;
