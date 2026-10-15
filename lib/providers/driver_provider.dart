@@ -41,14 +41,15 @@ class DriverNotifier extends StateNotifier<DriversState> {
   Future<void> loadDrivers() async {
     state = state.copyWith(status: DriversStatus.loading);
     try {
-      final users = await _data.getDocuments<UserModel>(
+      // Parse the full driver document, not a plain UserModel: the vehicle,
+      // availability, performance and commission are stored alongside the user
+      // fields, and rebuilding from UserModel silently dropped them (the form
+      // then saved the empty vehicle back, wiping it).
+      final drivers = await _data.getDocuments<DriverModel>(
         AppConstants.usersCollection,
-        UserModel.fromMap,
+        DriverModel.fromMap,
         where: [WhereClause(field: 'role', value: 'driver')],
       );
-      final drivers = users
-          .map((u) => DriverModel.fromUserModel(u))
-          .toList();
       state = DriversState(
         status: DriversStatus.loaded,
         drivers: drivers,

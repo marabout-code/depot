@@ -6,7 +6,6 @@ import '../models/order_status.dart';
 import '../models/product_model.dart';
 import '../models/inventory_model.dart';
 import '../models/driver_model.dart';
-import '../models/user_model.dart';
 
 class TopProduct {
   final String productId;
@@ -152,9 +151,9 @@ class ReportNotifier extends StateNotifier<ReportsState> {
           orderBy: 'createdAt',
           descending: true,
         ),
-        _data.getDocuments<UserModel>(
+        _data.getDocuments<DriverModel>(
           AppConstants.usersCollection,
-          UserModel.fromMap,
+          DriverModel.fromMap,
           where: [WhereClause(field: 'role', value: 'driver')],
         ),
       ]);
@@ -163,7 +162,7 @@ class ReportNotifier extends StateNotifier<ReportsState> {
       final products = results[1] as List<ProductModel>;
       final inventory = results[2] as List<InventoryModel>;
       final movements = results[3] as List<InventoryMovement>;
-      final driverUsers = results[4] as List<UserModel>;
+      final driverUsers = results[4] as List<DriverModel>;
 
       final now = DateTime.now();
       final todayStart = DateTime(now.year, now.month, now.day);
@@ -264,7 +263,7 @@ class ReportNotifier extends StateNotifier<ReportsState> {
         }
       }
 
-      final drivers = driverUsers.map((u) => DriverModel.fromUserModel(u)).toList();
+      final drivers = driverUsers;
       int availDrivers = 0;
       double totalRating = 0;
       double totalEarnings = 0;

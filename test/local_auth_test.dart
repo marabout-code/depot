@@ -1,7 +1,9 @@
 import 'package:depot_distribution_app/core/database/app_database.dart';
+import 'package:depot_distribution_app/core/database/depot_scope.dart';
 import 'package:depot_distribution_app/core/database/local_auth_service.dart';
 import 'package:depot_distribution_app/core/database/local_data_service.dart';
 import 'package:depot_distribution_app/core/services/backup_service.dart';
+import 'package:depot_distribution_app/models/driver_model.dart';
 import 'package:depot_distribution_app/models/user_model.dart';
 import 'package:depot_distribution_app/models/user_role.dart';
 // Only for the `&` operator on expressions; the drift matchers would collide
@@ -175,6 +177,73 @@ void main() {
       expect(row.dirty, isTrue);
       expect(row.version, 2);
       expect(decodePayload(row.payload)['name'], 'Renamed');
+    });
+
+    test('round-trips a driver vehicle through the stored payload', () async {
+      final now = DateTime.now().toIso8601String();
+      await data.createDocument('users', {
+        'id': 'drv1',
+        'name': 'Jean',
+        'email': 'jean@example.com',
+        'role': 'driver',
+        'status': 'active',
+        'createdAt': now,
+        'updatedAt': now,
+        'vehicle': {'type': 'Truck', 'plateNumber': 'LT-1234', 'color': 'Blanc'},
+        'commissionRate': 12.5,
+      }, docId: 'drv1');
+
+      final drivers = await data.getDocuments<DriverModel>(
+        'users',
+        DriverModel.fromMap,
+        where: [WhereClause(field: 'role', value: 'driver')],
+      );
+
+      expect(drivers.single.vehicle.plateNumber, 'LT-1234');
+      expect(drivers.single.vehicle.type, 'Truck');
+      expect(drivers.single.commissionRate, 12.5);
+    });
+  });
+
+  group('depot scoping', () {
+    Future<bool> rowExists(String docId) async {
+      final rows = await (db.select(db.documents)
+            ..where((d) => d.collection.equals('orders') & d.docId.equals(docId)))
+          .get();
+      return rows.isNotEmpty;
+    }
+
+    test('reads are filtered to the active depot plus legacy rows', () async {
+      await data.createDocument('orders', {'id': 'a', 'depotId': 'depotA'},
+          docId: 'a');
+      await data.createDocument('orders', {'id': 'b', 'depotId': 'depotB'},
+          docId: 'b');
+      await data.createDocument('orders', {'id': 'legacy'}, docId: 'legacy');
+
+      await data.setScope(const DepotScope.depot('depotA'));
+
+      final visible = await data.getDocuments<Map<String, dynamic>>(
+        'orders',
+        (m) => m,
+      );
+      expect(visible.map((m) => m['id']).toSet(), {'a', 'legacy'});
+
+      // The other depot's row is gone from the database, not merely hidden.
+      expect(await rowExists('b'), isFalse);
+    });
+
+    test('logout drops tenant rows but keeps user profiles', () async {
+      await data.createDocument('users', {'id': 'u', 'depotId': 'depotA'},
+          docId: 'u');
+      await data.createDocument('orders', {'id': 'o', 'depotId': 'depotA'},
+          docId: 'o');
+
+      await data.setScope(const DepotScope.depot('depotA'));
+      await data.setScope(const DepotScope.none());
+
+      final users = await db.select(db.documents).get();
+      expect(users.any((d) => d.collection == 'users' && d.docId == 'u'), isTrue);
+      expect(users.any((d) => d.collection == 'orders'), isFalse);
     });
   });
 
