@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../database/app_database.dart';
+import '../database/depot_scope.dart';
 import '../services/sync_service.dart';
 
 final localDataServiceProvider = Provider<LocalDataService>((ref) {
@@ -31,6 +32,56 @@ class LocalDataService {
   /// a pass. Optional so tests can construct the service without a sync layer.
   final void Function()? onWrite;
 
+  /// The depot this device's local database is scoped to. Reads are filtered by
+  /// it and a scope change purges foreign rows, so one depot's admin never sees
+  /// another's data. Defaults to [DepotScope.all] so the pre-login and test
+  /// behaviour is an unfiltered database.
+  DepotScope _scope = const DepotScope.all();
+
+  DepotScope get scope => _scope;
+
+  /// The collection whose rows survive a logout: their profiles and offline PIN
+  /// hashes are what make an offline keypad login work after signing out.
+  static const String _usersCollection = 'users';
+
+  /// Establishes the active depot scope. When it changes (login as another
+  /// depot, or logout) the rows that no longer belong are deleted and the sync
+  /// cursors reset, so the next pass re-pulls the new scope from scratch.
+  Future<void> setScope(DepotScope scope) async {
+    if (scope == _scope) return;
+    _scope = scope;
+    await _purgeForScope(scope);
+    await _resetSyncCursors();
+    onWrite?.call();
+  }
+
+  Future<void> _purgeForScope(DepotScope scope) async {
+    // Unrestricted callers read every depot, so there is nothing to remove.
+    if (scope.isAll) return;
+
+    if (scope.isNone) {
+      await (_db.delete(_db.documents)
+            ..where((d) => d.collection.equals(_usersCollection).not()))
+          .go();
+      return;
+    }
+
+    // A depot-scoped caller keeps only its own rows; the legacy NULL-depot rows
+    // are shared and stay.
+    final depotId = scope.depotId!;
+    await (_db.delete(_db.documents)
+          ..where(
+            (d) => d.depotId.isNotNull() & d.depotId.equals(depotId).not(),
+          ))
+        .go();
+  }
+
+  Future<void> _resetSyncCursors() async {
+    await _db
+        .update(_db.syncState)
+        .write(SyncStateCompanion(lastPulledAt: Value<DateTime?>(null)));
+  }
+
   /// Filters and sorts happen in Dart over the decoded payload. The depot
   /// dataset is small enough that this stays well under a frame, and it keeps
   /// one code path for both synced and unsynced rows.
@@ -57,6 +108,7 @@ class LocalDataService {
             collection: collection,
             docId: id,
             payload: encodePayload({...data, 'id': id}),
+            depotId: Value(_depotIdFor(collection, id, data)),
             version: const Value(1),
             localUpdatedAt: DateTime.now(),
             dirty: const Value(true),
@@ -65,6 +117,22 @@ class LocalDataService {
         );
     onWrite?.call();
     return id;
+  }
+
+  /// The depot a new row is stamped with. A depot record belongs to itself
+  /// (matching the server, so each depot admin reads its own record). Otherwise
+  /// an explicit `depotId` in the payload wins — a superadmin assigning a user
+  /// to a specific depot — and everything else inherits the caller's depot.
+  /// An unrestricted caller stamps null when nothing is explicit.
+  String? _depotIdFor(
+    String collection,
+    String docId,
+    Map<String, dynamic> data,
+  ) {
+    if (collection == 'depots') return docId;
+    final explicit = data['depotId'];
+    if (explicit is String && explicit.isNotEmpty) return explicit;
+    return _scope.stampDepotId;
   }
 
   Future<T?> getDocument<T>(
@@ -77,7 +145,7 @@ class LocalDataService {
           ..where((d) => d.collection.equals(collection) & d.docId.equals(docId)))
         .getSingleOrNull();
 
-    if (row == null || row.deleted) {
+    if (row == null || row.deleted || !_scope.allows(row.depotId)) {
       if (throwOnNotFound) {
         throw LocalDataException('Document not found in $collection/$docId');
       }
@@ -95,7 +163,7 @@ class LocalDataService {
           ..where((d) => d.collection.equals(collection) & d.docId.equals(docId)))
         .getSingleOrNull();
 
-    if (row == null || row.deleted) {
+    if (row == null || row.deleted || !_scope.allows(row.depotId)) {
       if (throwOnNotFound) {
         throw LocalDataException('Document not found in $collection/$docId');
       }
@@ -117,6 +185,7 @@ class LocalDataService {
         .get();
 
     var items = rows
+        .where((row) => _scope.allows(row.depotId))
         .map((row) => Map<String, dynamic>.from(decodePayload(row.payload)))
         .toList();
 
@@ -227,6 +296,9 @@ class LocalDataService {
                     collection: op.collection,
                     docId: op.docId,
                     payload: encodePayload(payload),
+                    depotId: existing != null
+                        ? Value(existing.depotId)
+                        : Value(_depotIdFor(op.collection, op.docId, payload)),
                     version: Value((existing?.version ?? 0) + 1),
                     localUpdatedAt: DateTime.now(),
                     dirty: const Value(true),

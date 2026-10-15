@@ -19,6 +19,13 @@ class Documents extends Table {
   TextColumn get docId => text()();
   TextColumn get payload => text()();
 
+  /// The depot this row belongs to, mirroring `sync_documents.depot_id` on the
+  /// server. Null for pre-depot (legacy) rows, which every depot shares, and
+  /// for rows an unrestricted caller created. Reads are filtered against the
+  /// active [DepotScope] so one depot's admin never sees another's data, even
+  /// when a previous login left rows behind on the same device.
+  TextColumn get depotId => text().nullable()();
+
   /// Monotonic version used for last-write-wins conflict resolution. A local
   /// write bumps it; the winning side is whichever version is higher.
   IntColumn get version => integer().withDefault(const Constant(1))();
@@ -79,7 +86,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -92,6 +99,14 @@ class AppDatabase extends _$AppDatabase {
                   SyncStateCompanion.insert(collection: name),
                   mode: InsertMode.insertOrIgnore,
                 );
+          }
+        },
+        onUpgrade: (m, from, to) async {
+          // v2 adds depot scoping. Existing rows keep a null depot_id, i.e. they
+          // are treated as legacy shared rows until the next pull stamps them,
+          // which matches the server's own back-compat rule.
+          if (from < 2) {
+            await m.addColumn(documents, documents.depotId);
           }
         },
       );

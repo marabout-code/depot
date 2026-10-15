@@ -78,13 +78,13 @@ class DemoDataService {
     ),
     DemoAccount(
       id: 'demo_admin_1',
-      label: 'Admin — Dépôt Central (Douala)',
+      label: 'Admin — Dépôt Central (Bonabéri)',
       pin: '1111',
       role: UserRole.admin,
     ),
     DemoAccount(
       id: 'demo_admin_2',
-      label: 'Admin — Dépôt Yaoundé',
+      label: 'Admin — Dépôt Yaoundé (Centre)',
       pin: '2222',
       role: UserRole.admin,
     ),
@@ -130,6 +130,7 @@ class DemoDataService {
                   'id': row.docId,
                   _marker: true,
                 }),
+                depotId: Value(row.data['depotId'] as String?),
                 version: const Value(1),
                 localUpdatedAt: DateTime.now(),
                 dirty: const Value(false),
@@ -216,7 +217,7 @@ class DemoDataService {
       DepotModel(
         id: depot1Id,
         name: 'Dépôt Central',
-        city: 'Douala',
+        city: 'Bonabéri',
         status: DepotModel.statusActive,
         createdAt: now,
       ).toMap(),
@@ -228,7 +229,7 @@ class DemoDataService {
       DepotModel(
         id: depot2Id,
         name: 'Dépôt Yaoundé',
-        city: 'Yaoundé',
+        city: 'Centre',
         status: DepotModel.statusActive,
         createdAt: now,
       ).toMap(),
@@ -242,7 +243,7 @@ class DemoDataService {
       DepotModel(
         id: depot3Id,
         name: 'Dépôt Bafoussam',
-        city: 'Bafoussam',
+        city: 'Tamdja',
         status: DepotModel.statusInactive,
         createdAt: now,
       ).toMap(),

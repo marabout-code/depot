@@ -405,6 +405,7 @@ class SyncService {
             collection: collection,
             docId: id,
             payload: encodePayload(data),
+            depotId: Value(remote['depotId'] as String?),
             version: Value(remoteVersion),
             localUpdatedAt: remoteUpdatedAt.toLocal(),
             dirty: const Value(false),

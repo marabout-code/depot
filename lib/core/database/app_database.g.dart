@@ -40,6 +40,17 @@ class $DocumentsTable extends Documents
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _depotIdMeta = const VerificationMeta(
+    'depotId',
+  );
+  @override
+  late final GeneratedColumn<String> depotId = GeneratedColumn<String>(
+    'depot_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _versionMeta = const VerificationMeta(
     'version',
   );
@@ -97,6 +108,7 @@ class $DocumentsTable extends Documents
     collection,
     docId,
     payload,
+    depotId,
     version,
     localUpdatedAt,
     dirty,
@@ -137,6 +149,12 @@ class $DocumentsTable extends Documents
       );
     } else if (isInserting) {
       context.missing(_payloadMeta);
+    }
+    if (data.containsKey('depot_id')) {
+      context.handle(
+        _depotIdMeta,
+        depotId.isAcceptableOrUnknown(data['depot_id']!, _depotIdMeta),
+      );
     }
     if (data.containsKey('version')) {
       context.handle(
@@ -188,6 +206,10 @@ class $DocumentsTable extends Documents
         DriftSqlType.string,
         data['${effectivePrefix}payload'],
       )!,
+      depotId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}depot_id'],
+      ),
       version: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}version'],
@@ -218,6 +240,13 @@ class Document extends DataClass implements Insertable<Document> {
   final String docId;
   final String payload;
 
+  /// The depot this row belongs to, mirroring `sync_documents.depot_id` on the
+  /// server. Null for pre-depot (legacy) rows, which every depot shares, and
+  /// for rows an unrestricted caller created. Reads are filtered against the
+  /// active [DepotScope] so one depot's admin never sees another's data, even
+  /// when a previous login left rows behind on the same device.
+  final String? depotId;
+
   /// Monotonic version used for last-write-wins conflict resolution. A local
   /// write bumps it; the winning side is whichever version is higher.
   final int version;
@@ -235,6 +264,7 @@ class Document extends DataClass implements Insertable<Document> {
     required this.collection,
     required this.docId,
     required this.payload,
+    this.depotId,
     required this.version,
     required this.localUpdatedAt,
     required this.dirty,
@@ -246,6 +276,9 @@ class Document extends DataClass implements Insertable<Document> {
     map['collection'] = Variable<String>(collection);
     map['doc_id'] = Variable<String>(docId);
     map['payload'] = Variable<String>(payload);
+    if (!nullToAbsent || depotId != null) {
+      map['depot_id'] = Variable<String>(depotId);
+    }
     map['version'] = Variable<int>(version);
     map['local_updated_at'] = Variable<DateTime>(localUpdatedAt);
     map['dirty'] = Variable<bool>(dirty);
@@ -258,6 +291,9 @@ class Document extends DataClass implements Insertable<Document> {
       collection: Value(collection),
       docId: Value(docId),
       payload: Value(payload),
+      depotId: depotId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(depotId),
       version: Value(version),
       localUpdatedAt: Value(localUpdatedAt),
       dirty: Value(dirty),
@@ -274,6 +310,7 @@ class Document extends DataClass implements Insertable<Document> {
       collection: serializer.fromJson<String>(json['collection']),
       docId: serializer.fromJson<String>(json['docId']),
       payload: serializer.fromJson<String>(json['payload']),
+      depotId: serializer.fromJson<String?>(json['depotId']),
       version: serializer.fromJson<int>(json['version']),
       localUpdatedAt: serializer.fromJson<DateTime>(json['localUpdatedAt']),
       dirty: serializer.fromJson<bool>(json['dirty']),
@@ -287,6 +324,7 @@ class Document extends DataClass implements Insertable<Document> {
       'collection': serializer.toJson<String>(collection),
       'docId': serializer.toJson<String>(docId),
       'payload': serializer.toJson<String>(payload),
+      'depotId': serializer.toJson<String?>(depotId),
       'version': serializer.toJson<int>(version),
       'localUpdatedAt': serializer.toJson<DateTime>(localUpdatedAt),
       'dirty': serializer.toJson<bool>(dirty),
@@ -298,6 +336,7 @@ class Document extends DataClass implements Insertable<Document> {
     String? collection,
     String? docId,
     String? payload,
+    Value<String?> depotId = const Value.absent(),
     int? version,
     DateTime? localUpdatedAt,
     bool? dirty,
@@ -306,6 +345,7 @@ class Document extends DataClass implements Insertable<Document> {
     collection: collection ?? this.collection,
     docId: docId ?? this.docId,
     payload: payload ?? this.payload,
+    depotId: depotId.present ? depotId.value : this.depotId,
     version: version ?? this.version,
     localUpdatedAt: localUpdatedAt ?? this.localUpdatedAt,
     dirty: dirty ?? this.dirty,
@@ -318,6 +358,7 @@ class Document extends DataClass implements Insertable<Document> {
           : this.collection,
       docId: data.docId.present ? data.docId.value : this.docId,
       payload: data.payload.present ? data.payload.value : this.payload,
+      depotId: data.depotId.present ? data.depotId.value : this.depotId,
       version: data.version.present ? data.version.value : this.version,
       localUpdatedAt: data.localUpdatedAt.present
           ? data.localUpdatedAt.value
@@ -333,6 +374,7 @@ class Document extends DataClass implements Insertable<Document> {
           ..write('collection: $collection, ')
           ..write('docId: $docId, ')
           ..write('payload: $payload, ')
+          ..write('depotId: $depotId, ')
           ..write('version: $version, ')
           ..write('localUpdatedAt: $localUpdatedAt, ')
           ..write('dirty: $dirty, ')
@@ -346,6 +388,7 @@ class Document extends DataClass implements Insertable<Document> {
     collection,
     docId,
     payload,
+    depotId,
     version,
     localUpdatedAt,
     dirty,
@@ -358,6 +401,7 @@ class Document extends DataClass implements Insertable<Document> {
           other.collection == this.collection &&
           other.docId == this.docId &&
           other.payload == this.payload &&
+          other.depotId == this.depotId &&
           other.version == this.version &&
           other.localUpdatedAt == this.localUpdatedAt &&
           other.dirty == this.dirty &&
@@ -368,6 +412,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
   final Value<String> collection;
   final Value<String> docId;
   final Value<String> payload;
+  final Value<String?> depotId;
   final Value<int> version;
   final Value<DateTime> localUpdatedAt;
   final Value<bool> dirty;
@@ -377,6 +422,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
     this.collection = const Value.absent(),
     this.docId = const Value.absent(),
     this.payload = const Value.absent(),
+    this.depotId = const Value.absent(),
     this.version = const Value.absent(),
     this.localUpdatedAt = const Value.absent(),
     this.dirty = const Value.absent(),
@@ -387,6 +433,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
     required String collection,
     required String docId,
     required String payload,
+    this.depotId = const Value.absent(),
     this.version = const Value.absent(),
     required DateTime localUpdatedAt,
     this.dirty = const Value.absent(),
@@ -400,6 +447,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
     Expression<String>? collection,
     Expression<String>? docId,
     Expression<String>? payload,
+    Expression<String>? depotId,
     Expression<int>? version,
     Expression<DateTime>? localUpdatedAt,
     Expression<bool>? dirty,
@@ -410,6 +458,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
       if (collection != null) 'collection': collection,
       if (docId != null) 'doc_id': docId,
       if (payload != null) 'payload': payload,
+      if (depotId != null) 'depot_id': depotId,
       if (version != null) 'version': version,
       if (localUpdatedAt != null) 'local_updated_at': localUpdatedAt,
       if (dirty != null) 'dirty': dirty,
@@ -422,6 +471,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
     Value<String>? collection,
     Value<String>? docId,
     Value<String>? payload,
+    Value<String?>? depotId,
     Value<int>? version,
     Value<DateTime>? localUpdatedAt,
     Value<bool>? dirty,
@@ -432,6 +482,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
       collection: collection ?? this.collection,
       docId: docId ?? this.docId,
       payload: payload ?? this.payload,
+      depotId: depotId ?? this.depotId,
       version: version ?? this.version,
       localUpdatedAt: localUpdatedAt ?? this.localUpdatedAt,
       dirty: dirty ?? this.dirty,
@@ -451,6 +502,9 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
     }
     if (payload.present) {
       map['payload'] = Variable<String>(payload.value);
+    }
+    if (depotId.present) {
+      map['depot_id'] = Variable<String>(depotId.value);
     }
     if (version.present) {
       map['version'] = Variable<int>(version.value);
@@ -476,6 +530,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
           ..write('collection: $collection, ')
           ..write('docId: $docId, ')
           ..write('payload: $payload, ')
+          ..write('depotId: $depotId, ')
           ..write('version: $version, ')
           ..write('localUpdatedAt: $localUpdatedAt, ')
           ..write('dirty: $dirty, ')
@@ -1332,6 +1387,7 @@ typedef $$DocumentsTableCreateCompanionBuilder =
       required String collection,
       required String docId,
       required String payload,
+      Value<String?> depotId,
       Value<int> version,
       required DateTime localUpdatedAt,
       Value<bool> dirty,
@@ -1343,6 +1399,7 @@ typedef $$DocumentsTableUpdateCompanionBuilder =
       Value<String> collection,
       Value<String> docId,
       Value<String> payload,
+      Value<String?> depotId,
       Value<int> version,
       Value<DateTime> localUpdatedAt,
       Value<bool> dirty,
@@ -1371,6 +1428,11 @@ class $$DocumentsTableFilterComposer
 
   ColumnFilters<String> get payload => $composableBuilder(
     column: $table.payload,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get depotId => $composableBuilder(
+    column: $table.depotId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1419,6 +1481,11 @@ class $$DocumentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get depotId => $composableBuilder(
+    column: $table.depotId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get version => $composableBuilder(
     column: $table.version,
     builder: (column) => ColumnOrderings(column),
@@ -1459,6 +1526,9 @@ class $$DocumentsTableAnnotationComposer
 
   GeneratedColumn<String> get payload =>
       $composableBuilder(column: $table.payload, builder: (column) => column);
+
+  GeneratedColumn<String> get depotId =>
+      $composableBuilder(column: $table.depotId, builder: (column) => column);
 
   GeneratedColumn<int> get version =>
       $composableBuilder(column: $table.version, builder: (column) => column);
@@ -1506,6 +1576,7 @@ class $$DocumentsTableTableManager
                 Value<String> collection = const Value.absent(),
                 Value<String> docId = const Value.absent(),
                 Value<String> payload = const Value.absent(),
+                Value<String?> depotId = const Value.absent(),
                 Value<int> version = const Value.absent(),
                 Value<DateTime> localUpdatedAt = const Value.absent(),
                 Value<bool> dirty = const Value.absent(),
@@ -1515,6 +1586,7 @@ class $$DocumentsTableTableManager
                 collection: collection,
                 docId: docId,
                 payload: payload,
+                depotId: depotId,
                 version: version,
                 localUpdatedAt: localUpdatedAt,
                 dirty: dirty,
@@ -1526,6 +1598,7 @@ class $$DocumentsTableTableManager
                 required String collection,
                 required String docId,
                 required String payload,
+                Value<String?> depotId = const Value.absent(),
                 Value<int> version = const Value.absent(),
                 required DateTime localUpdatedAt,
                 Value<bool> dirty = const Value.absent(),
@@ -1535,6 +1608,7 @@ class $$DocumentsTableTableManager
                 collection: collection,
                 docId: docId,
                 payload: payload,
+                depotId: depotId,
                 version: version,
                 localUpdatedAt: localUpdatedAt,
                 dirty: dirty,

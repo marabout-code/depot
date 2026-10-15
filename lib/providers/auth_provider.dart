@@ -63,10 +63,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final user = await _authService.restoreSession();
       if (user == null) {
+        await _authService.applyScopeFor(null);
         state = const AuthState(status: AuthStatus.unauthenticated);
         return;
       }
 
+      await _authService.applyScopeFor(user);
       state = AuthState(
         status: AuthStatus.authenticated,
         user: user,
@@ -89,6 +91,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final user = await _authService.authenticatePin(pin);
       if (user != null) {
+        await _authService.applyScopeFor(user);
         state = AuthState(
           status: AuthStatus.authenticated,
           user: user,
@@ -111,6 +114,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       // users down for offline logins from here on.
       final online = await _authService.tryOnlinePinLogin(pin);
       if (online != null) {
+        await _authService.applyScopeFor(online);
         state = AuthState(status: AuthStatus.authenticated, user: online);
         return;
       }
@@ -146,6 +150,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         );
         return;
       }
+      await _authService.applyScopeFor(user);
       state = AuthState(
         status: AuthStatus.authenticated,
         user: user,
@@ -171,6 +176,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
     // (Wiping every hash here would make offline login impossible, since the
     // keypad is only reachable once the cached user is gone.)
     await _authService.logout();
+    // Drop the depot scope too: the next user must not inherit this one's data.
+    await _authService.applyScopeFor(null);
     state = const AuthState(status: AuthStatus.unauthenticated);
   }
 

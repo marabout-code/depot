@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../database/depot_scope.dart';
 import '../database/local_auth_service.dart';
 import '../database/local_data_service.dart';
 import '../../models/user_model.dart';
@@ -60,6 +61,26 @@ class LocalFirstAuthService {
   /// [LocalAuthService.pinLength] owns the rule; this is re-exported so the
   /// auth screens have a single import to reach.
   static const int pinLength = LocalAuthService.pinLength;
+
+  /// The depot scope a signed-in [user] reads under. Mirrors the server's
+  /// `is_unrestricted()`: an active superadmin, or any active account without a
+  /// depot (a legacy admin), reads every depot; everyone else is scoped to
+  /// their own depot; a signed-out session reads nothing.
+  static DepotScope scopeFor(UserModel? user) {
+    if (user == null || user.status != UserStatus.active) {
+      return const DepotScope.none();
+    }
+    if (user.role == UserRole.superadmin || user.depotId == null) {
+      return const DepotScope.all();
+    }
+    return DepotScope.depot(user.depotId!);
+  }
+
+  /// Applies [user]'s depot scope to the local database. Called whenever the
+  /// signed-in identity changes (login, restore, logout) so a depot admin's
+  /// device never keeps showing a previous depot's rows.
+  Future<void> applyScopeFor(UserModel? user) =>
+      _data.setScope(scopeFor(user));
 
   static String normalizePin(String pin) => LocalAuthService.normalizePin(pin);
 

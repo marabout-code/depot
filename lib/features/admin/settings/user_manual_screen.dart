@@ -20,6 +20,8 @@ class UserManualScreen extends StatelessWidget {
             'tournées de votre dépôt.',
         'L\'application fonctionne hors ligne : les données sont stockées '
             'localement puis synchronisées dès que le réseau revient.',
+        'Plusieurs dépôts peuvent coexister : chaque dépôt ne voit que ses '
+            'propres produits, commandes, conducteurs et comptes.',
       ],
     ),
     _ManualSectionData(
@@ -30,6 +32,24 @@ class UserManualScreen extends StatelessWidget {
         'Connectez-vous avec votre e-mail et votre mot de passe.',
         'Sans réseau, utilisez votre code PIN à 4 chiffres.',
         'Le bouton de déconnexion se trouve en haut à droite de l\'écran.',
+      ],
+    ),
+    _ManualSectionData(
+      icon: Icons.store_outlined,
+      color: Colors.deepPurple,
+      title: 'Dépôts (superadministrateur)',
+      steps: [
+        'Réservé au superadministrateur : gérez les dépôts depuis l\'écran '
+            'Dépôts.',
+        'Créer un dépôt : saisissez son nom et son quartier.',
+        'Modifiez, activez ou désactivez un dépôt à tout moment. Un dépôt '
+            'désactivé n\'accepte plus de nouveaux comptes ; ses données '
+            'restent intactes.',
+        'Supprimez un dépôt uniquement lorsqu\'il ne contient plus aucun '
+            'compte ni donnée ; sinon, désactivez-le.',
+        'Depuis la fiche d\'un dépôt : statistiques, administrateurs et '
+            'conducteurs, ajout d\'un administrateur et réinitialisation d\'un '
+            'code PIN.',
       ],
     ),
     _ManualSectionData(
@@ -116,11 +136,20 @@ class UserManualScreen extends StatelessWidget {
     _ManualSectionData(
       icon: Icons.cloud_off_outlined,
       color: Colors.grey,
-      title: 'Mode hors ligne',
+      title: 'Mode hors ligne & synchronisation',
       steps: [
-        'Une bannière indique l\'état hors ligne; vos modifications sont '
-            'conservées.',
-        'À la reconnexion, tout est synchronisé automatiquement.',
+        'Une bannière indique l\'état hors ligne ; vos modifications sont '
+            'conservées localement.',
+        'La synchronisation reprend automatiquement : après chaque '
+            'modification, dès le retour du réseau, et régulièrement en '
+            'arrière-plan.',
+        'En cas d\'échec, l\'application réessaie toute seule avec un délai '
+            'croissant.',
+        'Dans Paramètres, la carte Synchronisation indique l\'état (en ligne '
+            'ou hors ligne), le nombre de modifications en attente et la date '
+            'de la dernière synchronisation.',
+        'Appuyez sur « Synchroniser maintenant » pour forcer une '
+            'synchronisation.',
       ],
     ),
   ];
