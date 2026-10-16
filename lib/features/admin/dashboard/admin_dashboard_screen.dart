@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/string_constants.dart';
 import '../../../core/services/license_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/sync_status_icon.dart';
 import '../../../providers/auth_provider.dart';
 import '../products/product_list_screen.dart';
 import '../orders/order_list_screen.dart';
@@ -30,6 +31,7 @@ class AdminDashboardScreen extends ConsumerWidget {
         title: const Text('Dépôt Distribution'),
         automaticallyImplyLeading: false,
         actions: [
+          const SyncStatusIcon(),
           if (!license.isActivated)
             IconButton(
               icon: const Icon(Icons.verified_outlined),

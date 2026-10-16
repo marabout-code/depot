@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/string_constants.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/sync_status_icon.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/delivery_provider.dart';
 import '../deliveries/delivery_list_screen.dart';
@@ -42,6 +43,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
         title: const Text('Dépôt Distribution'),
         automaticallyImplyLeading: false,
         actions: [
+          const SyncStatusIcon(),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () {

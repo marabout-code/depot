@@ -19,6 +19,7 @@ class ProductFormScreen extends ConsumerStatefulWidget {
 
 class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _categoryFieldKey = GlobalKey<FormFieldState<String>>();
   final _nameController = TextEditingController();
   final _brandController = TextEditingController();
   final _packageSizeController = TextEditingController();
@@ -289,10 +290,16 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   Widget _buildDropdown(CategoriesState categoriesState) {
     final categories = categoriesState.categories;
     return DropdownButtonFormField<String>(
+      key: _categoryFieldKey,
       initialValue: _category.isEmpty && categories.isNotEmpty ? null : _category,
       decoration: InputDecoration(
         labelText: StringConstants.frProductCategory,
         prefixIcon: const Icon(Icons.category),
+        suffixIcon: IconButton(
+          icon: const Icon(Icons.add),
+          tooltip: 'Nouvelle catégorie',
+          onPressed: _showCreateCategoryDialog,
+        ),
       ),
       items: categories.map((c) {
         return DropdownMenuItem(value: c.name, child: Text(c.name));
@@ -302,5 +309,53 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
       },
       validator: (v) => v == null || v.isEmpty ? 'Catégorie requise' : null,
     );
+  }
+
+  Future<void> _showCreateCategoryDialog() async {
+    final controller = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Nouvelle catégorie'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          decoration: const InputDecoration(
+            hintText: 'Nom de la catégorie',
+            border: OutlineInputBorder(),
+          ),
+          onSubmitted: (value) {
+            final trimmed = value.trim();
+            if (trimmed.isNotEmpty) Navigator.of(ctx).pop(trimmed);
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final trimmed = controller.text.trim();
+              if (trimmed.isEmpty) return;
+              Navigator.of(ctx).pop(trimmed);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryColor,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Ajouter'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (name == null || name.isEmpty) return;
+
+    await ref.read(categoryProvider.notifier).addCategory(name);
+    if (!mounted) return;
+    setState(() => _category = name);
+    _categoryFieldKey.currentState?.didChange(name);
   }
 }
